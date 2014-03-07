@@ -1,0 +1,662 @@
+TITLE "DDR_CTR";
+
+-- CREATED BY FREDI ASCHWANDEN
+
+INCLUDE "lpm_bustri_BYT.inc";
+
+-- FIFO WATER MARK
+CONSTANT FIFO_LWM = 0;
+CONSTANT FIFO_MWM = 200;
+CONSTANT FIFO_HWM = 500;
+
+-- {{ALTERA_PARAMETERS_BEGIN}} DO NOT REMOVE THIS LINE!
+-- {{ALTERA_PARAMETERS_END}} DO NOT REMOVE THIS LINE!
+
+SUBDESIGN DDR_CTR
+(
+	-- {{ALTERA_IO_BEGIN}} DO NOT REMOVE THIS LINE!
+	FB_ADR[31..0] : INPUT;
+	nFB_CS1 : INPUT;
+	nFB_CS2 : INPUT;
+	nFB_CS3 : INPUT;
+	nFB_OE : INPUT;
+	FB_SIZE0 : INPUT;
+	FB_SIZE1 : INPUT;
+	nRSTO : INPUT;
+	MAIN_CLK : INPUT;
+	FB_ALE : INPUT;
+	nFB_WR : INPUT;
+	DDR_SYNC_66M : INPUT;
+	CLR_FIFO : INPUT;
+	VIDEO_RAM_CTR[15..0] : INPUT;
+	BLITTER_ADR[31..0] : INPUT;
+	BLITTER_SIG : INPUT;
+	BLITTER_WR : INPUT;
+	DDRCLK0 : INPUT;
+	CLK33M : INPUT;
+	FIFO_MW[8..0] : INPUT;
+	VA[12..0] : OUTPUT;
+	nVWE : OUTPUT;
+	nVRAS : OUTPUT;
+	nVCS : OUTPUT;
+	VCKE : OUTPUT;
+	nVCAS : OUTPUT;
+	FB_LE[3..0] : OUTPUT;
+	FB_VDOE[3..0] : OUTPUT;
+	SR_FIFO_WRE : OUTPUT;
+	SR_DDR_FB : OUTPUT;
+	SR_DDR_WR : OUTPUT;
+	SR_DDRWR_D_SEL : OUTPUT;
+	SR_VDMP[7..0] : OUTPUT;
+	VIDEO_DDR_TA : OUTPUT;
+	SR_BLITTER_DACK : OUTPUT;
+	BA[1..0] : OUTPUT;
+	DDRWR_D_SEL1 : OUTPUT;
+	VDM_SEL[3..0] : OUTPUT;
+	FB_AD[31..0] : BIDIR;
+	-- {{ALTERA_IO_END}} DO NOT REMOVE THIS LINE!
+)
+
+VARIABLE
+	FB_REGDDR				:MACHINE WITH STATES(FR_WAIT,FR_S0,FR_S1,FR_S2,FR_S3);	
+	DDR_SM					:MACHINE WITH STATES(DS_T1,DS_T2A,DS_T2B,DS_T3,DS_N5,DS_N6, DS_N7, DS_N8,					-- START (NORMAL 8 CYCLES TOTAL = 60ns)
+													   DS_C2,DS_C3,DS_C4, DS_C5, DS_C6, DS_C7, 		 					-- CONFIG 
+												                   DS_T4R,DS_T5R,										-- READ CPU UND BLITTER,  
+												                   DS_T4W,DS_T5W,DS_T6W,DS_T7W,DS_T8W,DS_T9W,		 	-- WRITE CPU UND BLITTER
+												                   DS_T4F,DS_T5F,DS_T6F,DS_T7F,DS_T8F,DS_T9F,DS_T10F, 	-- READ FIFO
+																				 DS_CB6,       DS_CB8,					-- CLOSE FIFO BANK
+												       DS_R2,DS_R3,DS_R4, DS_R5, DS_R6);		 						-- REFRESH 10X7.5NS=75NS
+	LINE					:NODE;
+	FB_B[3..0]				:NODE;
+	VCAS					:NODE;
+	VRAS					:NODE;
+	VWE						:NODE;
+	VA_P[12..0]				:DFF;
+	BA_P[1..0]				:DFF;
+	VA_S[12..0]				:DFF;
+	BA_S[1..0]				:DFF;
+	MCS[1..0]				:DFF;
+	CPU_DDR_SYNC			:DFF;
+	DDR_SEL					:NODE;
+	DDR_CS					:DFFE;
+	DDR_CONFIG				:NODE;
+	SR_DDR_WR				:DFF;
+	SR_DDRWR_D_SEL			:DFF;
+	SR_VDMP[7..0] 			:DFF;
+	CPU_ROW_ADR[12..0]		:NODE;
+	CPU_BA[1..0]			:NODE;
+	CPU_COL_ADR[9..0]		:NODE;
+	CPU_SIG					:NODE;
+	CPU_REQ					:DFF;
+	CPU_AC					:DFF;
+	BUS_CYC					:DFF;
+	BUS_CYC_END				:NODE;
+	BLITTER_REQ				:DFF;
+	BLITTER_AC				:DFF;
+	BLITTER_ROW_ADR[12..0]	:NODE;
+	BLITTER_BA[1..0]		:NODE;
+	BLITTER_COL_ADR[9..0]	:NODE;
+	FIFO_REQ				:DFF;
+	FIFO_AC					:DFF;
+	FIFO_ROW_ADR[12..0]		:NODE;
+	FIFO_BA[1..0]			:NODE;
+	FIFO_COL_ADR[9..0]		:NODE;
+	FIFO_ACTIVE				:NODE;
+	CLR_FIFO_SYNC			:DFF;
+	CLEAR_FIFO_CNT			:DFF;
+	STOP					:DFF;
+	SR_FIFO_WRE				:DFF;
+	FIFO_BANK_OK			:DFF;
+	FIFO_BANK_NOT_OK		:NODE;
+	DDR_REFRESH_ON			:NODE;
+	DDR_REFRESH_CNT[10..0]	:DFF;
+	DDR_REFRESH_REQ			:DFF;
+	DDR_REFRESH_SIG[3..0]	:DFFE;
+	REFRESH_TIME			:DFF;
+	VIDEO_BASE_L_D[7..0]	:DFFE;
+	VIDEO_BASE_L			:NODE;
+	VIDEO_BASE_M_D[7..0]	:DFFE;
+	VIDEO_BASE_M			:NODE;
+	VIDEO_BASE_H_D[7..0]	:DFFE;
+	VIDEO_BASE_H			:NODE;
+	VIDEO_BASE_X_D[2..0]	:DFFE;
+	VIDEO_BASE_X_D_FULL[7..0]	:NODE;
+	VIDEO_ADR_CNT[22..0]	:DFFE;
+	VIDEO_CNT_L				:NODE;
+	VIDEO_CNT_M				:NODE;
+	VIDEO_CNT_H				:NODE;
+	VIDEO_BASE_ADR[22..0]	:NODE;
+	VIDEO_ACT_ADR[26..0]	:NODE;
+	
+BEGIN
+	LINE =  FB_SIZE0 &  FB_SIZE1;
+-- BYT SELECT
+	FB_B0 = FB_ADR[1..0]==0 								-- ADR==0
+		  # FB_SIZE1 & FB_SIZE0 # !FB_SIZE1 & !FB_SIZE0; 	-- LONG UND LINE
+	FB_B1 = FB_ADR[1..0]==1									-- ADR==1
+		  # FB_SIZE1 & !FB_SIZE0 & !FB_ADR1					-- HIGH WORD
+		  # FB_SIZE1 & FB_SIZE0 # !FB_SIZE1 & !FB_SIZE0; 	-- LONG UND LINE
+	FB_B2 = FB_ADR[1..0]==2									-- ADR==2
+		  # FB_SIZE1 & FB_SIZE0 # !FB_SIZE1 & !FB_SIZE0; 	-- LONG UND LINE
+	FB_B3 = FB_ADR[1..0]==3									-- ADR==3
+		  # FB_SIZE1 & !FB_SIZE0 &  FB_ADR1 				-- LOW WORD
+		  # FB_SIZE1 & FB_SIZE0 # !FB_SIZE1 & !FB_SIZE0; 	-- LONG UND LINE
+-- CPU READ (REG DDR => CPU) AND WRITE (CPU => REG DDR)  --------------------------------------------------
+	FB_REGDDR.CLK = MAIN_CLK;
+	CASE FB_REGDDR IS
+		WHEN FR_WAIT => 
+			FB_LE0   = !nFB_WR;
+			IF BUS_CYC # DDR_SEL & LINE & !nFB_WR THEN		-- LOS WENN BEREIT ODER IMMER BEI LINE WRITE
+				FB_REGDDR = FR_S0;
+			ELSE
+				FB_REGDDR = FR_WAIT;
+			END IF;
+		WHEN FR_S0 =>
+			IF DDR_CS THEN
+				FB_LE0   = !nFB_WR;
+				VIDEO_DDR_TA = VCC;
+				IF LINE THEN							
+					FB_VDOE0 = !nFB_OE & !DDR_CONFIG;
+					FB_REGDDR = FR_S1;
+				ELSE
+					BUS_CYC_END = VCC;
+					FB_VDOE0 = !nFB_OE & !MAIN_CLK & !DDR_CONFIG;
+					FB_REGDDR = FR_WAIT;
+				END IF;
+			ELSE
+				FB_REGDDR = FR_WAIT;	
+			END IF;
+		WHEN FR_S1 => 
+			IF DDR_CS THEN
+				FB_VDOE1 = !nFB_OE & !DDR_CONFIG;
+				FB_LE1   = !nFB_WR;
+				VIDEO_DDR_TA = VCC;
+				FB_REGDDR = FR_S2;
+			ELSE
+				FB_REGDDR = FR_WAIT;
+			END IF;
+		WHEN FR_S2 => 
+			IF DDR_CS THEN
+				FB_VDOE2 = !nFB_OE & !DDR_CONFIG;
+				FB_LE2   = !nFB_WR;
+				IF !BUS_CYC & LINE & !nFB_WR THEN		-- BEI LINE WRITE EVT. WARTEN
+					FB_REGDDR = FR_S2;
+				ELSE
+					VIDEO_DDR_TA = VCC;
+					FB_REGDDR = FR_S3;
+				END IF;
+			ELSE
+				FB_REGDDR = FR_WAIT;
+			END IF;
+		WHEN FR_S3 => 
+			IF DDR_CS THEN
+				FB_VDOE3 = !nFB_OE & !MAIN_CLK & !DDR_CONFIG;
+				FB_LE3   = !nFB_WR;
+				VIDEO_DDR_TA = VCC;
+				BUS_CYC_END = VCC;
+				FB_REGDDR = FR_WAIT;
+			ELSE
+				FB_REGDDR = FR_WAIT;
+			END IF;
+	END CASE;
+-- DDR STEUERUNG -----------------------------------------------------
+-- VIDEO RAM CONTROL REGISTER (IST IN VIDEO_MUX_CTR) $F0000400: BIT 0: VCKE; 1: !nVCS ;2:REFRESH ON , (0=FIFO UND CNT CLEAR); 3: CONFIG; 8: FIFO_ACTIVE; 
+	VCKE = VIDEO_RAM_CTR0;
+	nVCS = !VIDEO_RAM_CTR1;
+	DDR_REFRESH_ON = VIDEO_RAM_CTR2;
+	DDR_CONFIG = VIDEO_RAM_CTR3;	
+	FIFO_ACTIVE = VIDEO_RAM_CTR8;
+--------------------------------
+	CPU_ROW_ADR[] = FB_ADR[26..14];
+	CPU_BA[] = FB_ADR[13..12];
+	CPU_COL_ADR[] = FB_ADR[11..2];
+	nVRAS = !VRAS;
+	nVCAS = !VCAS;
+	nVWE = !VWE;
+	SR_DDR_WR.CLK = DDRCLK0;
+	SR_DDRWR_D_SEL.CLK = DDRCLK0;
+	SR_VDMP[7..0].CLK = DDRCLK0;
+	SR_FIFO_WRE.CLK = DDRCLK0; 
+	CPU_AC.CLK = DDRCLK0;
+	FIFO_AC.CLK = DDRCLK0;
+	BLITTER_AC.CLK = DDRCLK0;
+	DDRWR_D_SEL1 = BLITTER_AC;
+-- SELECT LOGIC
+	DDR_SEL  = FB_ALE & FB_AD[31..30]==B"01";
+	DDR_CS.CLK = MAIN_CLK;
+	DDR_CS.ENA = FB_ALE;
+	DDR_CS	 = DDR_SEL;
+-- WENN READ ODER WRITE B,W,L DDR SOFORT ANFORDERN, BEI WRITE LINE SPÄTER
+	CPU_SIG = DDR_SEL & (nFB_WR # !LINE)  & !DDR_CONFIG					-- NICHT LINE ODER READ SOFORT LOS WENN NICHT CONFIG
+			# DDR_SEL          			  &  DDR_CONFIG					-- CONFIG SOFORT LOS
+			# FB_REGDDR==FR_S1 & !nFB_WR; 								-- LINE WRITE SPÄTER
+	CPU_REQ.CLK = DDR_SYNC_66M;
+	CPU_REQ = CPU_SIG 
+			# CPU_REQ & FB_REGDDR!=FR_S1 & FB_REGDDR!=FR_S3 & !BUS_CYC_END & !BUS_CYC;		-- HALTEN BUS CYC BEGONNEN ODER FERTIG
+	BUS_CYC.CLK = DDRCLK0;
+	BUS_CYC = BUS_CYC & !BUS_CYC_END;
+	-- STATE MACHINE SYNCHRONISIEREN -----------------
+	MCS[].CLK = DDRCLK0;
+	MCS0 = MAIN_CLK;
+	MCS1 = MCS0;		
+	CPU_DDR_SYNC.CLK = DDRCLK0;
+	CPU_DDR_SYNC = MCS[]==2 & VCKE & !nVCS;				-- NUR 1 WENN EIN
+	---------------------------------------------------
+	VA_S[].CLK = DDRCLK0;
+	BA_S[].CLK = DDRCLK0;
+	VA[] =  VA_S[];
+	BA[] =  BA_S[];
+	VA_P[].CLK = DDRCLK0;
+	BA_P[].CLK = DDRCLK0;
+-- DDR STATE MACHINE  -----------------------------------------------
+	DDR_SM.CLK = DDRCLK0;
+	CASE DDR_SM IS
+		WHEN DS_T1 =>
+			IF DDR_REFRESH_REQ THEN
+				DDR_SM = DS_R2;
+			ELSE
+				IF CPU_DDR_SYNC THEN							-- SYNCHRON UND EIN?
+					IF DDR_CONFIG THEN							-- JA
+						DDR_SM = DS_C2;
+					ELSE
+						IF CPU_REQ THEN							-- BEI WAIT UND LINE WRITE
+							VA_S[] = CPU_ROW_ADR[];
+							BA_S[] = CPU_BA[];
+							CPU_AC = VCC;
+							BUS_CYC = VCC;
+							DDR_SM = DS_T2B;
+						ELSE
+							IF FIFO_REQ # !BLITTER_REQ THEN			-- FIFO IST DEFAULT
+								VA_P[] = FIFO_ROW_ADR[];
+								BA_P[] = FIFO_BA[];
+								FIFO_AC = VCC;						-- VORBESETZEN
+							ELSE
+								VA_P[] = BLITTER_ROW_ADR[];
+								BA_P[] = BLITTER_BA[];
+								BLITTER_AC = VCC;					-- VORBESETZEN
+							END IF;
+							DDR_SM = DS_T2A;
+						END IF;
+					END IF;
+				ELSE
+					DDR_SM = DS_T1;									-- NEIN ->SYNCHRONISIEREN
+				END IF;
+			END IF;
+			
+		WHEN DS_T2A =>												-- SCHNELLZUGRIFF *** HIER IST PAGE IMMER NOT OK ***
+			IF DDR_SEL & (nFB_WR # !LINE) THEN
+				VRAS = VCC;
+				VA[] = FB_AD[26..14];
+				BA[] = FB_AD[13..12]; 
+				VA_S[10] = VCC;										-- AUTO PRECHARGE DA NICHT FIFO PAGE  
+				CPU_AC = VCC;
+				BUS_CYC = VCC;										-- BUS CYCLUS LOSTRETEN
+			ELSE
+				VRAS = FIFO_AC & FIFO_REQ # BLITTER_AC & BLITTER_REQ;
+				VA[] = VA_P[];
+				BA[] = BA_P[]; 
+				VA_S[10] = !(FIFO_AC & FIFO_REQ);
+				FIFO_BANK_OK = FIFO_AC & FIFO_REQ;
+				FIFO_AC = FIFO_AC & FIFO_REQ;
+				BLITTER_AC = BLITTER_AC & BLITTER_REQ;
+			END IF;	
+			DDR_SM = DS_T3;
+
+		WHEN DS_T2B =>
+			VRAS = VCC;
+			FIFO_BANK_NOT_OK = VCC;
+			CPU_AC = VCC;
+			BUS_CYC = VCC;											-- BUS CYCLUS LOSTRETEN
+			DDR_SM = DS_T3;
+
+		WHEN DS_T3 =>
+			CPU_AC = CPU_AC;
+			FIFO_AC = FIFO_AC;
+			BLITTER_AC = BLITTER_AC;
+			VA_S[10] = VA_S[10]; 									-- AUTO PRECHARGE WENN NICHT FIFO PAGE  
+			IF !nFB_WR & CPU_AC # BLITTER_WR & BLITTER_AC THEN
+				DDR_SM = DS_T4W;
+			ELSE
+				IF CPU_AC THEN										-- CPU?
+					VA_S[9..0] = CPU_COL_ADR[];
+					BA_S[] = CPU_BA[];
+					DDR_SM = DS_T4R;												 
+				ELSE
+					IF FIFO_AC THEN									-- FIFO?
+						VA_S[9..0] = FIFO_COL_ADR[];
+						BA_S[] = FIFO_BA[];
+						DDR_SM = DS_T4F;
+					ELSE
+						IF BLITTER_AC THEN
+							VA_S[9..0] = BLITTER_COL_ADR[];
+							BA_S[] = BLITTER_BA[];
+							DDR_SM = DS_T4R;												 
+						ELSE
+							DDR_SM = DS_N8;
+						END IF;
+					END IF;
+				END IF;
+			END IF;
+-- READ			
+		WHEN DS_T4R =>
+			CPU_AC = CPU_AC;
+			BLITTER_AC = BLITTER_AC;
+			VCAS = VCC;															
+			SR_DDR_FB = CPU_AC;										-- READ DATEN FÜR CPU
+			SR_BLITTER_DACK = BLITTER_AC;							-- BLITTER DACK AND BLITTER LATCH DATEN
+			DDR_SM = DS_T5R;	
+			
+		WHEN DS_T5R =>
+ 			CPU_AC = CPU_AC;
+			BLITTER_AC = BLITTER_AC;
+			IF FIFO_REQ & FIFO_BANK_OK THEN							-- FIFO READ EINSCHIEBEN WENN BANK OK
+ 				VA_S[9..0] = FIFO_COL_ADR[];
+ 				VA_S[10] = GND;										-- MANUEL PRECHARGE
+ 				BA_S[] = FIFO_BA[];
+				DDR_SM = DS_T6F;
+ 			ELSE	
+				VA_S[10] = VCC;										-- ALLE PAGES SCHLIESSEN  
+				DDR_SM = DS_CB6;
+			END IF;
+-- WRITE			
+		WHEN DS_T4W =>
+			CPU_AC = CPU_AC;
+			BLITTER_AC = BLITTER_AC;
+			SR_BLITTER_DACK = BLITTER_AC;							-- BLITTER ACK AND BLITTER LATCH DATEN
+			VA_S[10] = VA_S[10]; 									-- AUTO PRECHARGE WENN NICHT FIFO PAGE  
+ 			DDR_SM = DS_T5W;
+			
+		WHEN DS_T5W =>
+			CPU_AC = CPU_AC;
+			BLITTER_AC = BLITTER_AC;
+			VA_S[9..0] = CPU_AC     & CPU_COL_ADR[]
+					   # BLITTER_AC & BLITTER_COL_ADR[];
+			VA_S[10] = VA_S[10]; 									-- AUTO PRECHARGE WENN NICHT FIFO PAGE  
+			BA_S[]  = CPU_AC     & CPU_BA[]
+				    # BLITTER_AC & BLITTER_BA[];
+			SR_VDMP[7..4] = FB_B[];									-- BYTE ENABLE WRITE
+			SR_VDMP[3..0] = LINE & B"1111";							-- LINE ENABLE WRITE
+			DDR_SM = DS_T6W;
+			
+		WHEN DS_T6W =>								 
+			CPU_AC = CPU_AC;
+			BLITTER_AC = BLITTER_AC;
+			VCAS = VCC;															
+			VWE  = VCC;
+			SR_DDR_WR = VCC;										-- WRITE COMMAND CPU UND BLITTER IF WRITER
+			SR_DDRWR_D_SEL = VCC;									-- 2. HÄLFTE WRITE DATEN SELEKTIEREN
+			SR_VDMP[] = LINE & B"11111111";							-- WENN LINE DANN ACTIV 
+			DDR_SM = DS_T7W;
+
+		WHEN DS_T7W =>								 
+			CPU_AC = CPU_AC;
+			BLITTER_AC = BLITTER_AC;
+			SR_DDR_WR = VCC;										-- WRITE COMMAND CPU UND BLITTER IF WRITE
+			SR_DDRWR_D_SEL = VCC;									-- 2. HÄLFTE WRITE DATEN SELEKTIEREN
+			DDR_SM = DS_T8W;
+
+		WHEN DS_T8W =>								 
+			DDR_SM = DS_T9W;
+
+		WHEN DS_T9W =>								 
+			IF FIFO_REQ & FIFO_BANK_OK  THEN
+				VA_S[9..0] = FIFO_COL_ADR[];
+				VA_S[10] = GND;										-- NON AUTO PRECHARGE  
+				BA_S[] = FIFO_BA[];
+				DDR_SM = DS_T6F;
+			ELSE
+				VA_S[10] = VCC;										-- ALLE PAGES SCHLIESSEN  
+				DDR_SM = DS_CB6;
+			END IF;
+-- FIFO READ 
+		WHEN DS_T4F =>
+			VCAS = VCC;															
+			SR_FIFO_WRE = VCC;										-- DATEN WRITE FIFO
+			DDR_SM = DS_T5F;
+			
+		WHEN DS_T5F =>
+			IF FIFO_REQ THEN
+				IF VIDEO_ADR_CNT[7..0]==H"FF" THEN					-- NEUE PAGE?
+					VA_S[10] = VCC;									-- ALLE PAGES SCHLIESSEN  
+					DDR_SM = DS_CB6;								-- BANK SCHLIESSEN
+				ELSE
+					VA_S[9..0] = FIFO_COL_ADR[]+4;
+					VA_S[10] = GND;									-- NON AUTO PRECHARGE  
+					BA_S[] = FIFO_BA[];
+					DDR_SM = DS_T6F;
+				END IF;											 
+			ELSE
+				VA_S[10] = VCC;										-- ALLE PAGES SCHLIESSEN  
+				DDR_SM = DS_CB6;									-- NOCH OFFEN LASSEN
+			END IF;
+			
+		WHEN DS_T6F =>
+			VCAS = VCC;															
+			SR_FIFO_WRE = VCC;										-- DATEN WRITE FIFO
+			DDR_SM = DS_T7F;
+																							 
+		WHEN DS_T7F =>
+			IF CPU_REQ & FIFO_MW[]>FIFO_LWM THEN	
+				VA_S[10] = VCC;										-- ALLE PAGES SCHLIESEN 
+				DDR_SM = DS_CB8;									-- BANK SCHLIESSEN
+			ELSE
+				IF FIFO_REQ THEN
+					IF VIDEO_ADR_CNT[7..0]==H"FF" THEN				-- NEUE PAGE?
+						VA_S[10] = VCC;								-- ALLE PAGES SCHLIESSEN 
+						DDR_SM = DS_CB8;							-- BANK SCHLIESSEN
+					ELSE
+						VA_S[9..0] = FIFO_COL_ADR[]+4;
+						VA_S[10] = GND;								-- NON AUTO PRECHARGE  
+						BA_S[] = FIFO_BA[];
+						DDR_SM = DS_T8F;
+					END IF;											 
+				ELSE
+					VA_S[10] = VCC;									-- ALLE PAGES SCHLIESEN 
+					DDR_SM = DS_CB8;								-- BANK SCHLIESSEN
+				END IF;
+			END IF;
+			
+		WHEN DS_T8F =>
+			VCAS = VCC;															
+			SR_FIFO_WRE = VCC;										-- DATEN WRITE FIFO
+			IF FIFO_MW[]<FIFO_LWM THEN								-- NOTFALL?
+				DDR_SM = DS_T5F;									-- JA->
+			ELSE
+				DDR_SM = DS_T9F;
+			END IF;																	 
+			
+		WHEN DS_T9F =>
+			IF FIFO_REQ THEN
+				IF VIDEO_ADR_CNT[7..0]==H"FF" THEN					-- NEUE PAGE?
+					VA_S[10] = VCC;									-- ALLE BANKS SCHLIESEN 
+					DDR_SM = DS_CB6;								-- BANK SCHLIESSEN
+				ELSE
+ 					VA_P[9..0] = FIFO_COL_ADR[]+4;
+					VA_P[10] = GND;									-- NON AUTO PRECHARGE  
+					BA_P[] = FIFO_BA[];
+					DDR_SM = DS_T10F;
+ 				END IF;											 
+			ELSE
+				VA_S[10] = VCC;										-- ALLE BANKS SCHLIESEN 
+				DDR_SM = DS_CB6;									-- BANK SCHLIESSEN
+			END IF;
+
+		WHEN DS_T10F =>
+ 			IF DDR_SEL & (nFB_WR # !LINE) & FB_AD[13..12]!=FIFO_BA[] THEN
+ 				VRAS = VCC;
+ 				VA[] = FB_AD[26..14];
+ 				BA[] = FB_AD[13..12]; 
+ 				CPU_AC = VCC;
+ 				BUS_CYC = VCC;										-- BUS CYCLUS LOSTRETEN
+ 				VA_S[10] = VCC;										-- AUTO PRECHARGE DA NICHT FIFO BANK
+ 				DDR_SM = DS_T3;
+ 			ELSE
+				VCAS = VCC;
+				VA[] = VA_P[];
+				BA[] = BA_P[];
+				SR_FIFO_WRE = VCC;									-- DATEN WRITE FIFO
+				DDR_SM = DS_T7F;
+			END IF;	
+
+-- CONFIG CYCLUS
+		WHEN DS_C2 =>
+			DDR_SM = DS_C3;
+		WHEN DS_C3 =>
+			BUS_CYC = CPU_REQ;
+			DDR_SM = DS_C4;
+		WHEN DS_C4 =>
+			IF CPU_REQ THEN
+				DDR_SM = DS_C5;
+			ELSE
+				DDR_SM = DS_T1;
+			END IF;	
+		WHEN DS_C5 =>
+			DDR_SM = DS_C6;
+		WHEN DS_C6 =>
+			VA_S[] = FB_AD[12..0];
+			BA_S[] = FB_AD[14..13];
+			DDR_SM = DS_C7;
+		WHEN DS_C7 =>
+			VRAS = FB_AD18 & !nFB_WR & !FB_SIZE0 & !FB_SIZE1;		-- NUR BEI LONG WRITE
+			VCAS = FB_AD17 & !nFB_WR & !FB_SIZE0 & !FB_SIZE1;		-- NUR BEI LONG WRITE
+			VWE	 = FB_AD16 & !nFB_WR & !FB_SIZE0 & !FB_SIZE1;		-- NUR BEI LONG WRITE
+			DDR_SM = DS_N8;
+-- CLOSE FIFO BANK
+		WHEN DS_CB6 =>
+			FIFO_BANK_NOT_OK = VCC;						-- AUF NOT OK 
+			VRAS = VCC;									-- BÄNKE SCHLIESSEN
+			VWE = VCC;
+			DDR_SM = DS_N7;
+		WHEN DS_CB8 =>
+			FIFO_BANK_NOT_OK = VCC;						-- AUF NOT OK 
+			VRAS = VCC;									-- BÄNKE SCHLIESSEN
+			VWE = VCC;
+			DDR_SM = DS_T1;
+-- REFRESH 70NS = 10 ZYCLEN
+		WHEN DS_R2 =>
+			IF DDR_REFRESH_SIG[]==9 THEN				-- EIN CYCLUS VORLAUF UM BANKS ZU SCHLIESSEN
+				VRAS = VCC;								-- ALLE BANKS SCHLIESSEN
+				VWE = VCC;		
+				VA[10] = VCC;
+				FIFO_BANK_NOT_OK = VCC;
+				DDR_SM = DS_R4;
+			ELSE
+				VCAS = VCC;
+				VRAS = VCC;
+				DDR_SM = DS_R3;
+			END IF;
+		WHEN DS_R3 =>
+			DDR_SM = DS_R4;
+		WHEN DS_R4 =>
+			DDR_SM = DS_R5;
+		WHEN DS_R5 =>
+			DDR_SM = DS_R6;
+		WHEN DS_R6 =>
+			DDR_SM = DS_N5;
+-- LEERSCHLAUFE			
+		WHEN DS_N5 =>
+			DDR_SM = DS_N6;
+		WHEN DS_N6 =>
+			DDR_SM = DS_N7;
+		WHEN DS_N7 =>
+			DDR_SM = DS_N8;
+		WHEN DS_N8 =>
+			DDR_SM = DS_T1;
+	END CASE;
+
+---------------------------------------------------------------
+-- BLITTER ----------------------
+-----------------------------------------
+	BLITTER_REQ.CLK = DDRCLK0;
+	BLITTER_REQ = BLITTER_SIG & !DDR_CONFIG & VCKE & !nVCS;
+	BLITTER_ROW_ADR[] = BLITTER_ADR[26..14];
+	BLITTER_BA1 = BLITTER_ADR13;
+	BLITTER_BA0 = BLITTER_ADR12;
+	BLITTER_COL_ADR[] = BLITTER_ADR[11..2];
+------------------------------------------------------------------------------	
+-- FIFO ---------------------------------
+--------------------------------------------------------
+	FIFO_REQ.CLK = DDRCLK0;
+	FIFO_REQ = (FIFO_MW[]<FIFO_MWM
+			  # FIFO_MW[]<FIFO_HWM & FIFO_REQ) & FIFO_ACTIVE & !CLEAR_FIFO_CNT & !STOP & !DDR_CONFIG & VCKE & !nVCS;
+	FIFO_ROW_ADR[] = VIDEO_ADR_CNT[22..10];
+	FIFO_BA1 	   = VIDEO_ADR_CNT9;
+	FIFO_BA0 	   = VIDEO_ADR_CNT8;
+	FIFO_COL_ADR[] = (VIDEO_ADR_CNT[7..0],B"00");
+	FIFO_BANK_OK.CLK = DDRCLK0;
+	FIFO_BANK_OK = FIFO_BANK_OK & !FIFO_BANK_NOT_OK;
+	-- ZÄHLER RÜCKSETZEN WENN CLR FIFO ----------------
+	CLR_FIFO_SYNC.CLK =DDRCLK0;
+	CLR_FIFO_SYNC = CLR_FIFO;				-- SYNCHRONISIEREN
+	CLEAR_FIFO_CNT.CLK  = DDRCLK0;
+	CLEAR_FIFO_CNT = CLR_FIFO_SYNC # !FIFO_ACTIVE;
+	STOP.CLK = DDRCLK0;
+	STOP = CLR_FIFO_SYNC # CLEAR_FIFO_CNT;
+	-- ZÄHLEN -----------------------------------------------
+	VIDEO_ADR_CNT[].CLK = DDRCLK0;
+	VIDEO_ADR_CNT[].ENA = SR_FIFO_WRE # CLEAR_FIFO_CNT;
+	VIDEO_ADR_CNT[] =  CLEAR_FIFO_CNT & VIDEO_BASE_ADR[]
+					# !CLEAR_FIFO_CNT & VIDEO_ADR_CNT[]+1;	
+	VIDEO_BASE_ADR[22..20] = VIDEO_BASE_X_D[];
+	VIDEO_BASE_ADR[19..12] = VIDEO_BASE_H_D[];
+	VIDEO_BASE_ADR[11..4]  = VIDEO_BASE_M_D[];
+	VIDEO_BASE_ADR[3..0]   = VIDEO_BASE_L_D[7..4];
+	VDM_SEL[] = VIDEO_BASE_L_D[3..0];
+	-- AKTUELLE VIDEO ADRESSE
+	VIDEO_ACT_ADR[26..4] = VIDEO_ADR_CNT[] - (0,FIFO_MW[]);
+	VIDEO_ACT_ADR[3..0] = VDM_SEL[];
+-----------------------------------------------------------------------------------------
+-- REFRESH: IMMER 8 AUFS MAL, ANFORDERUNG ALLE 7.8us X 8 STCK. = 62.4us = 2059->2048 33MHz CLOCKS
+-----------------------------------------------------------------------------------------
+	DDR_REFRESH_CNT[].CLK = CLK33M;
+	DDR_REFRESH_CNT[] = DDR_REFRESH_CNT[]+1;													-- ZÄHLEN 0-2047 
+	REFRESH_TIME.CLK = DDRCLK0;
+	REFRESH_TIME = DDR_REFRESH_CNT[]==0 & !MAIN_CLK;											-- SYNC
+	DDR_REFRESH_SIG[].CLK = DDRCLK0;												
+	DDR_REFRESH_SIG[].ENA = REFRESH_TIME # DDR_SM==DS_R6;				
+	DDR_REFRESH_SIG[] =  REFRESH_TIME & 9                     & DDR_REFRESH_ON & !DDR_CONFIG	-- 9 STÜCK (8 REFRESH UND 1 ALS VORLAUF)
+					  # !REFRESH_TIME & (DDR_REFRESH_SIG[]-1) & DDR_REFRESH_ON & !DDR_CONFIG; 	-- MINUS 1 WENN GEMACHT
+	DDR_REFRESH_REQ.CLK = DDRCLK0;
+	DDR_REFRESH_REQ = DDR_REFRESH_SIG[]!=0 & DDR_REFRESH_ON & !REFRESH_TIME & !DDR_CONFIG;
+-----------------------------------------------------------	
+-- VIDEO REGISTER -----------------------
+---------------------------------------------------------------------------------------------------------------------
+	VIDEO_BASE_L_D[].CLK = MAIN_CLK;
+	VIDEO_BASE_L = !nFB_CS1 & FB_ADR[19..1]==H"7C106"; 								-- 820D/2
+	VIDEO_BASE_L_D[] = FB_AD[23..16];												-- SORRY, NUR 16 BYT GRENZEN
+	VIDEO_BASE_L_D[].ENA = !nFB_WR & VIDEO_BASE_L & FB_B1;	
+
+	VIDEO_BASE_M_D[].CLK = MAIN_CLK;
+	VIDEO_BASE_M = !nFB_CS1 & FB_ADR[19..1]==H"7C101"; 								-- 8203/2
+	VIDEO_BASE_M_D[] = FB_AD[23..16];
+	VIDEO_BASE_M_D[].ENA = !nFB_WR & VIDEO_BASE_M & FB_B3;	
+
+	VIDEO_BASE_H_D[].CLK = MAIN_CLK;
+	VIDEO_BASE_H = !nFB_CS1 & FB_ADR[19..1]==H"7C100";			 					-- 8200-1/2
+	VIDEO_BASE_H_D[] = FB_AD[23..16];
+	VIDEO_BASE_H_D[].ENA = !nFB_WR & VIDEO_BASE_H & FB_B1;	
+	VIDEO_BASE_X_D[].CLK = MAIN_CLK;
+	VIDEO_BASE_X_D[] = FB_AD[26..24];
+	VIDEO_BASE_X_D[].ENA = !nFB_WR & VIDEO_BASE_H & FB_B0;	
+
+	VIDEO_CNT_L = !nFB_CS1 & FB_ADR[19..1]==H"7C104"; 								-- 8209/2
+	VIDEO_CNT_M = !nFB_CS1 & FB_ADR[19..1]==H"7C103"; 								-- 8207/2
+	VIDEO_CNT_H = !nFB_CS1 & FB_ADR[19..1]==H"7C102"; 								-- 8204,5/2
+	
+	VIDEO_BASE_X_D_FULL[] = (0,VIDEO_BASE_X_D[]); -- GE
+
+	FB_AD[31..24] = lpm_bustri_BYT(
+						VIDEO_BASE_H  & VIDEO_BASE_X_D_FULL[]
+					  # VIDEO_CNT_H	  & (0,VIDEO_ACT_ADR[26..24])
+					  ,(VIDEO_BASE_H # VIDEO_CNT_H) & !nFB_OE);
+
+	FB_AD[23..16] = lpm_bustri_BYT(
+						VIDEO_BASE_L  & VIDEO_BASE_L_D[]
+					  # VIDEO_BASE_M  & VIDEO_BASE_M_D[]
+					  # VIDEO_BASE_H  & VIDEO_BASE_H_D[]
+					  # VIDEO_CNT_L	  & VIDEO_ACT_ADR[7..0]
+					  # VIDEO_CNT_M	  & VIDEO_ACT_ADR[15..8]
+					  # VIDEO_CNT_H	  & VIDEO_ACT_ADR[23..16]
+					  ,(VIDEO_BASE_L # VIDEO_BASE_M # VIDEO_BASE_H # VIDEO_CNT_L # VIDEO_CNT_M # VIDEO_CNT_H) & !nFB_OE);
+END;
+

@@ -1,0 +1,6 @@
+set_global_assignment -name IP_TOOL_NAME "LPM_BUSTRI"
+set_global_assignment -name IP_TOOL_VERSION "8.1"
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "lpm_bustri_WORD.vhd"]
+set_global_assignment -name MISC_FILE [file join $::quartus(qip_path) "lpm_bustri_WORD.bsf"]
+set_global_assignment -name MISC_FILE [file join $::quartus(qip_path) "lpm_bustri_WORD.inc"]
+set_global_assignment -name MISC_FILE [file join $::quartus(qip_path) "lpm_bustri_WORD.cmp"]

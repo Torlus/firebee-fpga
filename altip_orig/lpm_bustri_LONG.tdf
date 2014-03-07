@@ -1,0 +1,72 @@
+--------------------------------------------------------------------
+--
+--	LPM_BUSTRI Parameterized Megafunction
+--
+--  Copyright (C) 1991-2013 Altera Corporation
+--  Your use of Altera Corporation's design tools, logic functions  
+--  and other software and tools, and its AMPP partner logic  
+--  functions, and any output files from any of the foregoing  
+--  (including device programming or simulation files), and any  
+--  associated documentation or information are expressly subject  
+--  to the terms and conditions of the Altera Program License  
+--  Subscription Agreement, Altera MegaCore Function License  
+--  Agreement, or other applicable license agreement, including,  
+--  without limitation, that your use is for the sole purpose of  
+--  programming logic devices manufactured by Altera and sold by  
+--  Altera or its authorized distributors.  Please refer to the  
+--  applicable agreement for further details. 
+--  
+--  Quartus II 13.1.0 Build 162 10/23/2013 
+--
+--	Version 2.0
+--
+--------------------------------------------------------------------
+
+SUBDESIGN lpm_bustri_LONG
+(
+	tridata[32-1..0]	: BIDIR;
+	data[32-1..0]	: INPUT = VCC;
+	enabletr				: INPUT = VCC;
+	enabledt				: INPUT = VCC;
+	result[32-1..0]	: OUTPUT;
+)
+
+VARIABLE
+	% Are the enable inputs used? %
+	IF (USED(enabledt)) GENERATE
+		dout[32-1..0]	: TRI;
+	END GENERATE;
+	IF (USED(enabletr)) GENERATE
+		din[32-1..0]		: TRI;
+	END GENERATE;
+
+BEGIN
+
+	ASSERT (32 > 0)
+			REPORT "Value of 32 parameter value must be greater than 0"
+			SEVERITY ERROR
+			HELP_ID LPM_BUSTRI_WIDTH;
+
+	ASSERT (USED(enabledt) & USED(data))
+		REPORT "lpm_bustri function requires data[] port -- Altera recommends using the TRI primitive instead"
+		SEVERITY ERROR
+		HELP_ID LPM_BUSTRI_DATA;
+
+	% Connect buffers if they are used %
+	IF (USED(enabledt)) GENERATE
+		dout[].oe = enabledt;
+		dout[] = data[];
+		tridata[] = dout[];
+	END GENERATE;
+
+	IF (USED(enabletr)) GENERATE
+		din[].oe = enabletr;
+		din[] = tridata[];
+		result[] = din[];
+	ELSE GENERATE
+		result[] = tridata[];
+	END GENERATE;
+	IF !USED(result) GENERATE
+		result[] = GND;
+	END GENERATE;
+END;

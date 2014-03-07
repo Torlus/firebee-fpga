@@ -1,0 +1,99 @@
+/*
+WARNING: Do NOT edit the input and output ports in this file in a text
+editor if you plan to continue editing the block that represents it in
+the Block Editor! File corruption is VERY likely to occur.
+*/
+/*
+Copyright (C) 1991-2008 Altera Corporation
+Your use of Altera Corporation's design tools, logic functions 
+and other software and tools, and its AMPP partner logic 
+functions, and any output files from any of the foregoing 
+(including device programming or simulation files), and any 
+associated documentation or information are expressly subject 
+to the terms and conditions of the Altera Program License 
+Subscription Agreement, Altera MegaCore Function License 
+Agreement, or other applicable license agreement, including, 
+without limitation, that your use is for the sole purpose of 
+programming logic devices manufactured by Altera and sold by 
+Altera or its authorized distributors.  Please refer to the 
+applicable agreement for further details.
+*/
+(header "symbol" (version "1.1"))
+(symbol
+	(rect 0 0 240 136)
+	(text "altddio_bidir0" (rect 82 1 171 17)(font "Arial" (font_size 10)))
+	(text "inst" (rect 8 120 25 132)(font "Arial" ))
+	(port
+		(pt 0 24)
+		(input)
+		(text "datain_h[31..0]" (rect 0 0 83 14)(font "Arial" (font_size 8)))
+		(text "datain_h[31..0]" (rect 4 11 76 24)(font "Arial" (font_size 8)))
+		(line (pt 0 24)(pt 88 24)(line_width 3))
+	)
+	(port
+		(pt 0 40)
+		(input)
+		(text "datain_l[31..0]" (rect 0 0 79 14)(font "Arial" (font_size 8)))
+		(text "datain_l[31..0]" (rect 4 27 73 40)(font "Arial" (font_size 8)))
+		(line (pt 0 40)(pt 88 40)(line_width 3))
+	)
+	(port
+		(pt 0 56)
+		(input)
+		(text "oe" (rect 0 0 14 14)(font "Arial" (font_size 8)))
+		(text "oe" (rect 4 43 16 56)(font "Arial" (font_size 8)))
+		(line (pt 0 56)(pt 88 56)(line_width 1))
+	)
+	(port
+		(pt 0 72)
+		(input)
+		(text "inclock" (rect 0 0 38 14)(font "Arial" (font_size 8)))
+		(text "inclock" (rect 4 59 36 72)(font "Arial" (font_size 8)))
+		(line (pt 0 72)(pt 88 72)(line_width 1))
+	)
+	(port
+		(pt 0 88)
+		(input)
+		(text "outclock" (rect 0 0 47 14)(font "Arial" (font_size 8)))
+		(text "outclock" (rect 4 75 42 88)(font "Arial" (font_size 8)))
+		(line (pt 0 88)(pt 88 88)(line_width 1))
+	)
+	(port
+		(pt 240 24)
+		(output)
+		(text "dataout_h[31..0]" (rect 0 0 92 14)(font "Arial" (font_size 8)))
+		(text "dataout_h[31..0]" (rect 159 11 237 24)(font "Arial" (font_size 8)))
+		(line (pt 240 24)(pt 144 24)(line_width 3))
+	)
+	(port
+		(pt 240 40)
+		(output)
+		(text "dataout_l[31..0]" (rect 0 0 87 14)(font "Arial" (font_size 8)))
+		(text "dataout_l[31..0]" (rect 163 27 238 40)(font "Arial" (font_size 8)))
+		(line (pt 240 40)(pt 144 40)(line_width 3))
+	)
+	(port
+		(pt 240 72)
+		(output)
+		(text "combout[31..0]" (rect 0 0 83 14)(font "Arial" (font_size 8)))
+		(text "combout[31..0]" (rect 166 59 237 72)(font "Arial" (font_size 8)))
+		(line (pt 240 72)(pt 144 72)(line_width 3))
+	)
+	(port
+		(pt 240 56)
+		(bidir)
+		(text "padio[31..0]" (rect 0 0 66 14)(font "Arial" (font_size 8)))
+		(text "padio[31..0]" (rect 181 43 238 56)(font "Arial" (font_size 8)))
+		(line (pt 240 56)(pt 144 56)(line_width 3))
+	)
+	(drawing
+		(text "ddio" (rect 108 27 129 40)(font "Arial" (font_size 8)))
+		(text "bidir" (rect 108 42 129 55)(font "Arial" (font_size 8)))
+		(text "power up" (rect 92 90 129 102)(font "Arial" ))
+		(text "low" (rect 92 100 105 112)(font "Arial" ))
+		(line (pt 88 16)(pt 144 16)(line_width 1))
+		(line (pt 144 16)(pt 144 112)(line_width 1))
+		(line (pt 144 112)(pt 88 112)(line_width 1))
+		(line (pt 88 112)(pt 88 16)(line_width 1))
+	)
+)

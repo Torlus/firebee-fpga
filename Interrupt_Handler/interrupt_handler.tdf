@@ -1,0 +1,478 @@
+TITLE "INTERRUPT HANDLER UND C1287";
+
+-- CREATED BY FREDI ASCHWANDEN
+
+INCLUDE "lpm_bustri_LONG.inc";
+INCLUDE "lpm_bustri_BYT.inc";
+
+
+--  Parameters Statement (optional)
+
+-- {{ALTERA_PARAMETERS_BEGIN}} DO NOT REMOVE THIS LINE!
+-- {{ALTERA_PARAMETERS_END}} DO NOT REMOVE THIS LINE!
+
+
+--  Subdesign Section
+
+SUBDESIGN interrupt_handler
+(
+	-- {{ALTERA_IO_BEGIN}} DO NOT REMOVE THIS LINE!
+	MAIN_CLK : INPUT;
+	nFB_WR : INPUT;
+	nFB_CS1 : INPUT;
+	nFB_CS2 : INPUT;
+	FB_SIZE0 : INPUT;
+	FB_SIZE1 : INPUT;
+	FB_ADR[31..0] : INPUT;
+	PIC_INT : INPUT;
+	E0_INT : INPUT;
+	DVI_INT : INPUT;
+	nPCI_INTA : INPUT;
+	nPCI_INTB : INPUT;
+	nPCI_INTC : INPUT;
+	nPCI_INTD : INPUT;
+	nMFP_INT : INPUT;
+	nFB_OE : INPUT;
+	DSP_INT : INPUT;
+	VSYNC : INPUT;
+	HSYNC : INPUT;
+	DMA_DRQ : INPUT;
+	nIRQ[7..2] : OUTPUT;
+	INT_HANDLER_TA : OUTPUT;
+	ACP_CONF[31..0] : OUTPUT;
+	TIN0 : OUTPUT;
+	FB_AD[31..0] : BIDIR;
+	-- {{ALTERA_IO_END}} DO NOT REMOVE THIS LINE!
+)
+
+VARIABLE
+	FB_B[3..0]				:NODE;
+	INT_CTR[31..0]			:DFFE;
+	INT_CTR_CS				:NODE;
+	INT_LATCH[31..0]		:DFF;
+	INT_LATCH_CS			:NODE;
+	INT_CLEAR[31..0]		:DFF;
+	INT_CLEAR_CS			:NODE;
+	INT_IN[31..0]			:NODE;
+	INT_ENA[31..0]			:DFFE;
+	INT_ENA_CS				:NODE;
+	ACP_CONF[31..0]			:DFFE;
+	ACP_CONF_CS				:NODE;
+	PSEUDO_BUS_ERROR		:NODE;
+	UHR_AS					:NODE;
+	UHR_DS					:NODE;
+	RTC_ADR[5..0]			:DFFE;
+	ACHTELSEKUNDEN[2..0]	:DFFE;
+	WERTE[7..0][63..0]		:DFFE;			-- WERTE REGISTER 0-63
+	PIC_INT_SYNC[2..0]		:DFF;
+	INC_SEC					:NODE;
+	INC_MIN					:NODE;
+	INC_STD					:NODE;
+	INC_TAG					:NODE;
+	ANZAHL_TAGE_DES_MONATS[7..0]:NODE;
+	WINTERZEIT				:NODE;
+	SOMMERZEIT				:NODE;
+	INC_MONAT				:NODE;
+	INC_JAHR				:NODE;
+	UPDATE_ON				:NODE;
+	
+BEGIN
+-- BYT SELECT
+	FB_B0 =  FB_SIZE1 & !FB_SIZE0 & !FB_ADR1				-- HWORD
+		# !FB_SIZE1 &  FB_SIZE0 & !FB_ADR1 & !FB_ADR0	-- HHBYT
+		# !FB_SIZE1 & !FB_SIZE0 # FB_SIZE1 & FB_SIZE0;	-- LONG UND LINE
+	FB_B1 =  FB_SIZE1 & !FB_SIZE0 & !FB_ADR1				-- HWORD
+		# !FB_SIZE1 &  FB_SIZE0 & !FB_ADR1 &  FB_ADR0	-- HLBYT
+		# !FB_SIZE1 & !FB_SIZE0 # FB_SIZE1 & FB_SIZE0;	-- LONG UND LINE
+	FB_B2 =  FB_SIZE1 & !FB_SIZE0 &  FB_ADR1				-- LWORD
+		# !FB_SIZE1 &  FB_SIZE0 &  FB_ADR1 & !FB_ADR0	-- LHBYT
+		# !FB_SIZE1 & !FB_SIZE0 # FB_SIZE1 & FB_SIZE0;	-- LONG UND LINE
+	FB_B3 =  FB_SIZE1 & !FB_SIZE0 &  FB_ADR1				-- LWORD
+		# !FB_SIZE1 &  FB_SIZE0 &  FB_ADR1 &  FB_ADR0	-- LLBYT
+		# !FB_SIZE1 & !FB_SIZE0 # FB_SIZE1 & FB_SIZE0;	-- LONG UND LINE
+
+-- INTERRUPT CONTROL REGISTER: BIT0=INT5 AUSLÖSEN, 1=INT7 AUSLÖSEN
+	INT_CTR[].CLK = MAIN_CLK;
+	INT_CTR_CS = !nFB_CS2 & FB_ADR[27..2]==H"4000";						-- $10000/4
+	INT_CTR[] = FB_AD[];
+	INT_CTR[31..24].ENA = INT_CTR_CS & FB_B0 & !nFB_WR;
+	INT_CTR[23..16].ENA = INT_CTR_CS & FB_B1 & !nFB_WR;
+	INT_CTR[15..8].ENA  = INT_CTR_CS & FB_B2 & !nFB_WR;
+	INT_CTR[7..0].ENA   = INT_CTR_CS & FB_B3 & !nFB_WR;
+-- INTERRUPT ENABLE REGISTER BIT31=INT7,30=INT6,29=INT5,28=INT4,27=INT3,26=INT2
+	INT_ENA[].CLK = MAIN_CLK;
+	INT_ENA_CS = !nFB_CS2 & FB_ADR[27..2]==H"4001";						-- $10004/4
+	INT_ENA[] = FB_AD[];
+	INT_ENA[31..24].ENA = INT_ENA_CS & FB_B0 & !nFB_WR;
+	INT_ENA[23..16].ENA = INT_ENA_CS & FB_B1 & !nFB_WR;
+	INT_ENA[15..8].ENA  = INT_ENA_CS & FB_B2 & !nFB_WR;
+	INT_ENA[7..0].ENA   = INT_ENA_CS & FB_B3 & !nFB_WR;
+-- INTERRUPT CLEAR REGISTER WRITE ONLY 1=INTERRUPT CLEAR
+	INT_CLEAR[].CLK = MAIN_CLK;
+	INT_CLEAR_CS = !nFB_CS2 & FB_ADR[27..2]==H"4002";						-- $10008/4
+	INT_CLEAR[31..24] = FB_AD[31..24] & INT_CLEAR_CS & FB_B0 & !nFB_WR;
+	INT_CLEAR[23..16] = FB_AD[23..16] & INT_CLEAR_CS & FB_B1 & !nFB_WR;
+	INT_CLEAR[15..8]  = FB_AD[15..8]  & INT_CLEAR_CS & FB_B2 & !nFB_WR;
+	INT_CLEAR[7..0]   = FB_AD[7..0]   & INT_CLEAR_CS & FB_B3 & !nFB_WR;
+-- INTERRUPT LATCH REGISTER READ ONLY
+	INT_LATCH_CS = !nFB_CS2 & FB_ADR[27..2]==H"4003";						-- $1000C/4
+-- INTERRUPT
+	!nIRQ2 = HSYNC 						& INT_ENA[26];
+	!nIRQ3 = INT_CTR0 					& INT_ENA[27];
+	!nIRQ4 = VSYNC 						& INT_ENA[28];
+	 nIRQ5 = INT_LATCH[]==H"00000000" 	& INT_ENA[29];
+	!nIRQ6 = !nMFP_INT 					& INT_ENA[30];
+	!nIRQ7 = PSEUDO_BUS_ERROR			& INT_ENA[31];
+
+PSEUDO_BUS_ERROR = !nFB_CS1 & (FB_ADR[19..4]==H"F8C8"			-- SCC
+							#  FB_ADR[19..4]==H"F8E0"			-- VME
+							#  FB_ADR[19..4]==H"F920"			-- PADDLE
+							#  FB_ADR[19..4]==H"F921"			-- PADDLE
+							#  FB_ADR[19..4]==H"F922"			-- PADDLE
+							#  FB_ADR[19..4]==H"FFA8"			-- MFP2
+							#  FB_ADR[19..4]==H"FFA9"			-- MFP2
+							#  FB_ADR[19..4]==H"FFAA"			-- MFP2
+							#  FB_ADR[19..4]==H"FFA8"			-- MFP2
+							#  FB_ADR[19..8]==H"F87"			-- TT SCSI
+							#  FB_ADR[19..4]==H"FFC2"			-- ST UHR
+							#  FB_ADR[19..4]==H"FFC3"			-- ST UHR
+							#  FB_ADR[19..4]==H"F890"			-- DMA SOUND
+							#  FB_ADR[19..4]==H"F891"			-- DMA SOUND
+							#  FB_ADR[19..4]==H"F892");			-- DMA SOUND
+-- IF VIDEO ADR CHANGE
+TIN0 = !nFB_CS1 & FB_ADR[19..1]==H"7C100" & !nFB_WR;			-- WRITE VIDEO BASE ADR HIGH 0xFFFF8201/2
+
+-- INTERRUPT LATCH
+	INT_LATCH[] = H"FFFFFFFF";
+	INT_LATCH0.CLK = PIC_INT & INT_ENA[0];
+	INT_LATCH1.CLK = E0_INT & INT_ENA[1];
+	INT_LATCH2.CLK = DVI_INT & INT_ENA[2];
+	INT_LATCH3.CLK = !nPCI_INTA & INT_ENA[3];
+	INT_LATCH4.CLK = !nPCI_INTB & INT_ENA[4];
+	INT_LATCH5.CLK = !nPCI_INTC & INT_ENA[5];
+	INT_LATCH6.CLK = !nPCI_INTD & INT_ENA[6];
+	INT_LATCH7.CLK = DSP_INT & INT_ENA[7];
+	INT_LATCH8.CLK = VSYNC & INT_ENA[8];
+	INT_LATCH9.CLK = HSYNC & INT_ENA[9];
+	
+-- INTERRUPT CLEAR
+	INT_LATCH[].CLRN = !INT_CLEAR[];
+	
+-- INT_IN
+	INT_IN0 = PIC_INT;
+	INT_IN1 = E0_INT;
+	INT_IN2 = DVI_INT;
+	INT_IN3 = !nPCI_INTA;
+	INT_IN4 = !nPCI_INTB;
+	INT_IN5 = !nPCI_INTC;
+	INT_IN6 = !nPCI_INTD;
+	INT_IN7 = DSP_INT;
+	INT_IN8 = VSYNC;
+	INT_IN9 = HSYNC;
+	INT_IN[25..10] = H"0";
+	INT_IN26 = HSYNC; 
+	INT_IN27 = INT_CTR0; 
+	INT_IN28 = VSYNC; 
+	INT_IN29 = INT_LATCH[]!=H"00000000";
+	INT_IN30 = !nMFP_INT; 
+	INT_IN31 = DMA_DRQ; 
+--***************************************************************************************
+-- ACP CONFIG REGISTER: BIT 31-> 0=CF 1=IDE 
+	ACP_CONF[].CLK = MAIN_CLK;
+	ACP_CONF_CS = !nFB_CS2 & FB_ADR[27..2]==H"10000";		-- $4'0000/4
+	ACP_CONF[] = FB_AD[];
+	ACP_CONF[31..24].ENA = ACP_CONF_CS & FB_B0 & !nFB_WR;
+	ACP_CONF[23..16].ENA = ACP_CONF_CS & FB_B1 & !nFB_WR;
+	ACP_CONF[15..8].ENA  = ACP_CONF_CS & FB_B2 & !nFB_WR;
+	ACP_CONF[7..0].ENA   = ACP_CONF_CS & FB_B3 & !nFB_WR;
+--***************************************************************************************
+	
+--------------------------------------------------------------	
+-- C1287   0=SEK 2=MIN 4=STD 6=WOCHENTAG 7=TAG 8=MONAT 9=JAHR
+----------------------------------------------------------
+	RTC_ADR[].CLK = MAIN_CLK;
+	RTC_ADR[] = FB_AD[21..16];
+	UHR_AS = !nFB_CS1 & FB_ADR[19..1]==H"7C4B0" & FB_B1;	-- FFFF8961 
+	UHR_DS = !nFB_CS1 & FB_ADR[19..1]==H"7C4B1" & FB_B3;	-- FFFF8963
+	RTC_ADR[].ENA = UHR_AS & !nFB_WR;
+	WERTE[][].CLK = MAIN_CLK;
+	WERTE[7..0][0] = FB_AD[23..16] & RTC_ADR[]==0 & UHR_DS & !nFB_WR;
+	WERTE[7..0][1] = FB_AD[23..16];
+	WERTE[7..0][2] = FB_AD[23..16] & RTC_ADR[]==2 & UHR_DS & !nFB_WR;
+	WERTE[7..0][3] = FB_AD[23..16];
+	WERTE[7..0][4] = FB_AD[23..16] & RTC_ADR[]==4 & UHR_DS & !nFB_WR;
+	WERTE[7..0][5] = FB_AD[23..16];
+	WERTE[7..0][6] = FB_AD[23..16] & RTC_ADR[]==6 & UHR_DS & !nFB_WR;
+	WERTE[7..0][7] = FB_AD[23..16] & RTC_ADR[]==7 & UHR_DS & !nFB_WR;
+	WERTE[7..0][8] = FB_AD[23..16] & RTC_ADR[]==8 & UHR_DS & !nFB_WR;
+	WERTE[7..0][9] = FB_AD[23..16] & RTC_ADR[]==9 & UHR_DS & !nFB_WR;
+	WERTE[7..0][10] = FB_AD[23..16];
+	WERTE[7..0][11] = FB_AD[23..16];
+	WERTE[7..0][12] = FB_AD[23..16];
+	WERTE[7..0][13] = FB_AD[23..16];
+	WERTE[7..0][14] = FB_AD[23..16];
+	WERTE[7..0][15] = FB_AD[23..16];
+	WERTE[7..0][16] = FB_AD[23..16];
+	WERTE[7..0][17] = FB_AD[23..16];
+	WERTE[7..0][18] = FB_AD[23..16];
+	WERTE[7..0][19] = FB_AD[23..16];
+	WERTE[7..0][20] = FB_AD[23..16];
+	WERTE[7..0][21] = FB_AD[23..16];
+	WERTE[7..0][22] = FB_AD[23..16];
+	WERTE[7..0][23] = FB_AD[23..16];
+	WERTE[7..0][24] = FB_AD[23..16];
+	WERTE[7..0][25] = FB_AD[23..16];
+	WERTE[7..0][26] = FB_AD[23..16];
+	WERTE[7..0][27] = FB_AD[23..16];
+	WERTE[7..0][28] = FB_AD[23..16];
+	WERTE[7..0][29] = FB_AD[23..16];
+	WERTE[7..0][30] = FB_AD[23..16];
+	WERTE[7..0][31] = FB_AD[23..16];
+	WERTE[7..0][32] = FB_AD[23..16];
+	WERTE[7..0][33] = FB_AD[23..16];
+	WERTE[7..0][34] = FB_AD[23..16];
+	WERTE[7..0][35] = FB_AD[23..16];
+	WERTE[7..0][36] = FB_AD[23..16];
+	WERTE[7..0][37] = FB_AD[23..16];
+	WERTE[7..0][38] = FB_AD[23..16];
+	WERTE[7..0][39] = FB_AD[23..16];
+	WERTE[7..0][40] = FB_AD[23..16];
+	WERTE[7..0][41] = FB_AD[23..16];
+	WERTE[7..0][42] = FB_AD[23..16];
+	WERTE[7..0][43] = FB_AD[23..16];
+	WERTE[7..0][44] = FB_AD[23..16];
+	WERTE[7..0][45] = FB_AD[23..16];
+	WERTE[7..0][46] = FB_AD[23..16];
+	WERTE[7..0][47] = FB_AD[23..16];
+	WERTE[7..0][48] = FB_AD[23..16];
+	WERTE[7..0][49] = FB_AD[23..16];
+	WERTE[7..0][50] = FB_AD[23..16];
+	WERTE[7..0][51] = FB_AD[23..16];
+	WERTE[7..0][52] = FB_AD[23..16];
+	WERTE[7..0][53] = FB_AD[23..16];
+	WERTE[7..0][54] = FB_AD[23..16];
+	WERTE[7..0][55] = FB_AD[23..16];
+	WERTE[7..0][56] = FB_AD[23..16];
+	WERTE[7..0][57] = FB_AD[23..16];
+	WERTE[7..0][58] = FB_AD[23..16];
+	WERTE[7..0][59] = FB_AD[23..16];
+	WERTE[7..0][60] = FB_AD[23..16];
+	WERTE[7..0][61] = FB_AD[23..16];
+	WERTE[7..0][62] = FB_AD[23..16];
+	WERTE[7..0][63] = FB_AD[23..16];
+	WERTE[][0].ENA = RTC_ADR[]==0 & UHR_DS & !nFB_WR;
+	WERTE[][1].ENA = RTC_ADR[]==1 & UHR_DS & !nFB_WR;
+	WERTE[][2].ENA = RTC_ADR[]==2 & UHR_DS & !nFB_WR;
+	WERTE[][3].ENA = RTC_ADR[]==3 & UHR_DS & !nFB_WR;
+	WERTE[][4].ENA = RTC_ADR[]==4 & UHR_DS & !nFB_WR;
+	WERTE[][5].ENA = RTC_ADR[]==5 & UHR_DS & !nFB_WR;
+	WERTE[][6].ENA = RTC_ADR[]==6 & UHR_DS & !nFB_WR;
+	WERTE[][7].ENA = RTC_ADR[]==7 & UHR_DS & !nFB_WR;
+	WERTE[][8].ENA = RTC_ADR[]==8 & UHR_DS & !nFB_WR;
+	WERTE[][9].ENA = RTC_ADR[]==9 & UHR_DS & !nFB_WR;
+	WERTE[][10].ENA = RTC_ADR[]==10 & UHR_DS & !nFB_WR;
+	WERTE[][11].ENA = RTC_ADR[]==11 & UHR_DS & !nFB_WR;
+	WERTE[][12].ENA = RTC_ADR[]==12 & UHR_DS & !nFB_WR;
+	WERTE[][13].ENA = RTC_ADR[]==13 & UHR_DS & !nFB_WR;
+	WERTE[][14].ENA = RTC_ADR[]==14 & UHR_DS & !nFB_WR;
+	WERTE[][15].ENA = RTC_ADR[]==15 & UHR_DS & !nFB_WR;
+	WERTE[][16].ENA = RTC_ADR[]==16 & UHR_DS & !nFB_WR;
+	WERTE[][17].ENA = RTC_ADR[]==17 & UHR_DS & !nFB_WR;
+	WERTE[][18].ENA = RTC_ADR[]==18 & UHR_DS & !nFB_WR;
+	WERTE[][19].ENA = RTC_ADR[]==19 & UHR_DS & !nFB_WR;
+	WERTE[][20].ENA = RTC_ADR[]==20 & UHR_DS & !nFB_WR;
+	WERTE[][21].ENA = RTC_ADR[]==21 & UHR_DS & !nFB_WR;
+	WERTE[][22].ENA = RTC_ADR[]==22 & UHR_DS & !nFB_WR;
+	WERTE[][23].ENA = RTC_ADR[]==23 & UHR_DS & !nFB_WR;
+	WERTE[][24].ENA = RTC_ADR[]==24 & UHR_DS & !nFB_WR;
+	WERTE[][25].ENA = RTC_ADR[]==25 & UHR_DS & !nFB_WR;
+	WERTE[][26].ENA = RTC_ADR[]==26 & UHR_DS & !nFB_WR;
+	WERTE[][27].ENA = RTC_ADR[]==27 & UHR_DS & !nFB_WR;
+	WERTE[][28].ENA = RTC_ADR[]==28 & UHR_DS & !nFB_WR;
+	WERTE[][29].ENA = RTC_ADR[]==29 & UHR_DS & !nFB_WR;
+	WERTE[][30].ENA = RTC_ADR[]==30 & UHR_DS & !nFB_WR;
+	WERTE[][31].ENA = RTC_ADR[]==31 & UHR_DS & !nFB_WR;
+	WERTE[][32].ENA = RTC_ADR[]==32 & UHR_DS & !nFB_WR;
+	WERTE[][33].ENA = RTC_ADR[]==33 & UHR_DS & !nFB_WR;
+	WERTE[][34].ENA = RTC_ADR[]==34 & UHR_DS & !nFB_WR;
+	WERTE[][35].ENA = RTC_ADR[]==35 & UHR_DS & !nFB_WR;
+	WERTE[][36].ENA = RTC_ADR[]==36 & UHR_DS & !nFB_WR;
+	WERTE[][37].ENA = RTC_ADR[]==37 & UHR_DS & !nFB_WR;
+	WERTE[][38].ENA = RTC_ADR[]==38 & UHR_DS & !nFB_WR;
+	WERTE[][39].ENA = RTC_ADR[]==39 & UHR_DS & !nFB_WR;
+	WERTE[][40].ENA = RTC_ADR[]==40 & UHR_DS & !nFB_WR;
+	WERTE[][41].ENA = RTC_ADR[]==41 & UHR_DS & !nFB_WR;
+	WERTE[][42].ENA = RTC_ADR[]==42 & UHR_DS & !nFB_WR;
+	WERTE[][43].ENA = RTC_ADR[]==43 & UHR_DS & !nFB_WR;
+	WERTE[][44].ENA = RTC_ADR[]==44 & UHR_DS & !nFB_WR;
+	WERTE[][45].ENA = RTC_ADR[]==45 & UHR_DS & !nFB_WR;
+	WERTE[][46].ENA = RTC_ADR[]==46 & UHR_DS & !nFB_WR;
+	WERTE[][47].ENA = RTC_ADR[]==47 & UHR_DS & !nFB_WR;
+	WERTE[][48].ENA = RTC_ADR[]==48 & UHR_DS & !nFB_WR;
+	WERTE[][49].ENA = RTC_ADR[]==49 & UHR_DS & !nFB_WR;
+	WERTE[][50].ENA = RTC_ADR[]==50 & UHR_DS & !nFB_WR;
+	WERTE[][51].ENA = RTC_ADR[]==51 & UHR_DS & !nFB_WR;
+	WERTE[][52].ENA = RTC_ADR[]==52 & UHR_DS & !nFB_WR;
+	WERTE[][53].ENA = RTC_ADR[]==53 & UHR_DS & !nFB_WR;
+	WERTE[][54].ENA = RTC_ADR[]==54 & UHR_DS & !nFB_WR;
+	WERTE[][55].ENA = RTC_ADR[]==55 & UHR_DS & !nFB_WR;
+	WERTE[][56].ENA = RTC_ADR[]==56 & UHR_DS & !nFB_WR;
+	WERTE[][57].ENA = RTC_ADR[]==57 & UHR_DS & !nFB_WR;
+	WERTE[][58].ENA = RTC_ADR[]==58 & UHR_DS & !nFB_WR;
+	WERTE[][59].ENA = RTC_ADR[]==59 & UHR_DS & !nFB_WR;
+	WERTE[][60].ENA = RTC_ADR[]==60 & UHR_DS & !nFB_WR;
+	WERTE[][61].ENA = RTC_ADR[]==61 & UHR_DS & !nFB_WR;
+	WERTE[][62].ENA = RTC_ADR[]==62 & UHR_DS & !nFB_WR;
+	WERTE[][63].ENA = RTC_ADR[]==63 & UHR_DS & !nFB_WR;
+	PIC_INT_SYNC[].CLK = MAIN_CLK;	PIC_INT_SYNC[0] = PIC_INT;
+	PIC_INT_SYNC[1] = PIC_INT_SYNC[0];
+	PIC_INT_SYNC[2] = !PIC_INT_SYNC[1] & PIC_INT_SYNC[0];
+	UPDATE_ON = !WERTE[7][11];		
+	WERTE[6][10].CLRN = GND;	-- KEIN UIP
+	UPDATE_ON = !WERTE[7][11];	-- UPDATE ON OFF
+	WERTE[2][11] = VCC;	-- IMMER BINARY
+	WERTE[1][11] = VCC;	-- IMMER 24H FORMAT
+	WERTE[0][11] = VCC;	-- IMMER SOMMERZEITKORREKTUR
+	WERTE[7][13] = VCC;	-- IMMER RICHTIG
+-- SOMMER WINTERZEIT: BIT 0 IM REGISTER D IST DIE INFORMATION OB SOMMERZEIT IST (BRAUCHT MAN FÜR RÜCKSCHALTUNG)
+	SOMMERZEIT = WERTE[][6]==1 & WERTE[][4]==1 & WERTE[][8]==4  & WERTE[][7]>23; --LETZTER SONNTAG IM APRIL
+	WERTE[0][13] = SOMMERZEIT;
+	WERTE[0][13].ENA = INC_STD & (SOMMERZEIT # WINTERZEIT);
+	WINTERZEIT = WERTE[][6]==1 & WERTE[][4]==1 & WERTE[][8]==10 & WERTE[][7]>24 & WERTE[0][13];  --LETZTER SONNTAG IM OKTOBER
+-- ACHTELSEKUNDEN
+	ACHTELSEKUNDEN[].CLK = MAIN_CLK;
+	ACHTELSEKUNDEN[] = ACHTELSEKUNDEN[]+1;
+	ACHTELSEKUNDEN[].ENA = PIC_INT_SYNC[2] & UPDATE_ON;
+-- SEKUNDEN
+	INC_SEC = ACHTELSEKUNDEN[]==7 & PIC_INT_SYNC[2] & UPDATE_ON;   
+	WERTE[][0] = (WERTE[][0]+1) & WERTE[][0]!=59 & !(RTC_ADR[]==0 & UHR_DS & !nFB_WR);			-- SEKUNDEN ZÄHLEN BIS 59
+	WERTE[][0].ENA  = INC_SEC & !(RTC_ADR[]==0 & UHR_DS & !nFB_WR);	
+-- MINUTEN
+	INC_MIN = INC_SEC & WERTE[][0]==59;							--  
+	WERTE[][2] = (WERTE[][2]+1) & WERTE[][2]!=59 & !(RTC_ADR[]==2 & UHR_DS & !nFB_WR);			-- MINUTEN ZÄHLEN BIS 59
+	WERTE[][2].ENA  = INC_MIN & !(RTC_ADR[]==2 & UHR_DS & !nFB_WR);								--  
+-- STUNDEN
+	INC_STD = INC_MIN & WERTE[][2]==59;							  
+	WERTE[][4] = (WERTE[][4]+1+(1 & SOMMERZEIT)) & WERTE[][4]!=23 & !(RTC_ADR[]==4 & UHR_DS & !nFB_WR);  -- STUNDEN ZÄHLEN BIS 23
+	WERTE[][4].ENA  = INC_STD & !(WINTERZEIT & WERTE[0][12]) & !(RTC_ADR[]==4 & UHR_DS & !nFB_WR);		-- EINE STUNDE AUSLASSEN WENN WINTERZEITUMSCHALTUNG UND NOCH SOMMERZEIT	 
+-- WOCHENTAG UND TAG 
+	INC_TAG = INC_STD & WERTE[][2]==23;						
+	WERTE[][6] = (WERTE[][6]+1) & WERTE[][6]!=7 & !(RTC_ADR[]==6 & UHR_DS & !nFB_WR)				-- WOCHENTAG ZÄHLEN BIS 7
+			   # 1              & WERTE[][6]==7 & !(RTC_ADR[]==6 & UHR_DS & !nFB_WR);			-- DANN BEI 1 WEITER
+	WERTE[][6].ENA  = INC_TAG & !(RTC_ADR[]==6 & UHR_DS & !nFB_WR);
+	ANZAHL_TAGE_DES_MONATS[] = 31 & (WERTE[][8]==1 # WERTE[][8]==3 # WERTE[][8]==5 # WERTE[][8]==7 # WERTE[][8]==8 # WERTE[][8]==10 # WERTE[][8]==12)
+							 # 30 & (WERTE[][8]==4 # WERTE[][8]==6 # WERTE[][8]==9 # WERTE[][8]==11)  
+							 # 29 &  WERTE[][8]==2 & WERTE[1..0][9]==0  
+							 # 28 &  WERTE[][8]==2 & WERTE[1..0][9]!=0;  
+	WERTE[][7] = (WERTE[][7]+1) & WERTE[][7]!=ANZAHL_TAGE_DES_MONATS[] & !(RTC_ADR[]==7 & UHR_DS & !nFB_WR)  	-- TAG ZÄHLEN BIS MONATSENDE
+			   # 1              & WERTE[][7]==ANZAHL_TAGE_DES_MONATS[] & !(RTC_ADR[]==7 & UHR_DS & !nFB_WR);		-- DANN BEI 1 WEITER
+	WERTE[][7].ENA  = INC_TAG & !(RTC_ADR[]==7 & UHR_DS & !nFB_WR);								--  
+-- MONATE
+	INC_MONAT = INC_TAG & WERTE[][7]==ANZAHL_TAGE_DES_MONATS[];							--  
+	WERTE[][8] = (WERTE[][8]+1) & WERTE[][8]!=12 & !(RTC_ADR[]==8 & UHR_DS & !nFB_WR)					-- MONATE ZÄHLEN BIS 12
+			   # 1              & WERTE[][8]==12 & !(RTC_ADR[]==8 & UHR_DS & !nFB_WR);					-- DANN BEI 1 WEITER
+	WERTE[][8].ENA  = INC_MONAT & !(RTC_ADR[]==8 & UHR_DS & !nFB_WR);
+-- JAHR		   
+	INC_JAHR = INC_MONAT & WERTE[][8]==12;							--  
+	WERTE[][9] = (WERTE[][9]+1) & WERTE[][9]!=99 & !(RTC_ADR[]==9 & UHR_DS & !nFB_WR);					-- JAHRE ZÄHLEN BIS 99
+	WERTE[][9].ENA  = INC_JAHR & !(RTC_ADR[]==9 & UHR_DS & !nFB_WR);
+-- TRISTATE OUTPUT
+
+	FB_AD[31..24] = lpm_bustri_BYT(
+					INT_CTR_CS   & INT_CTR[31..24] 
+				  #	INT_ENA_CS   & INT_ENA[31..24]
+				  #	INT_LATCH_CS & INT_LATCH[31..24]
+				  # INT_CLEAR_CS & INT_IN[31..24]
+				  # ACP_CONF_CS  & ACP_CONF[31..24]
+				  ,(INT_CTR_CS # INT_ENA_CS # INT_LATCH_CS # INT_CLEAR_CS # ACP_CONF_CS) & !nFB_OE);
+	FB_AD[23..16] = lpm_bustri_BYT(
+				   WERTE[][0] & RTC_ADR[]==0 & UHR_DS 
+				 # WERTE[][1] & RTC_ADR[]==1 & UHR_DS
+				 # WERTE[][2] & RTC_ADR[]==2 & UHR_DS
+				 # WERTE[][3] & RTC_ADR[]==3 & UHR_DS
+				 # WERTE[][4] & RTC_ADR[]==4 & UHR_DS
+				 # WERTE[][5] & RTC_ADR[]==5 & UHR_DS
+				 # WERTE[][6] & RTC_ADR[]==6 & UHR_DS
+				 # WERTE[][7] & RTC_ADR[]==7 & UHR_DS
+				 # WERTE[][8] & RTC_ADR[]==8 & UHR_DS
+				 # WERTE[][9] & RTC_ADR[]==9 & UHR_DS
+				 # WERTE[][10] & RTC_ADR[]==10 & UHR_DS
+				 # WERTE[][11] & RTC_ADR[]==11 & UHR_DS
+				 # WERTE[][12] & RTC_ADR[]==12 & UHR_DS
+				 # WERTE[][13] & RTC_ADR[]==13 & UHR_DS
+				 # WERTE[][14] & RTC_ADR[]==14 & UHR_DS
+				 # WERTE[][15] & RTC_ADR[]==15 & UHR_DS
+				 # WERTE[][16] & RTC_ADR[]==16 & UHR_DS
+				 # WERTE[][17] & RTC_ADR[]==17 & UHR_DS
+				 # WERTE[][18] & RTC_ADR[]==18 & UHR_DS
+				 # WERTE[][19] & RTC_ADR[]==19 & UHR_DS
+				 # WERTE[][20] & RTC_ADR[]==20 & UHR_DS
+				 # WERTE[][21] & RTC_ADR[]==21 & UHR_DS
+				 # WERTE[][22] & RTC_ADR[]==22 & UHR_DS
+				 # WERTE[][23] & RTC_ADR[]==23 & UHR_DS
+				 # WERTE[][24] & RTC_ADR[]==24 & UHR_DS
+				 # WERTE[][25] & RTC_ADR[]==25 & UHR_DS
+				 # WERTE[][26] & RTC_ADR[]==26 & UHR_DS
+				 # WERTE[][27] & RTC_ADR[]==27 & UHR_DS
+				 # WERTE[][28] & RTC_ADR[]==28 & UHR_DS
+				 # WERTE[][29] & RTC_ADR[]==29 & UHR_DS
+				 # WERTE[][30] & RTC_ADR[]==30 & UHR_DS
+				 # WERTE[][31] & RTC_ADR[]==31 & UHR_DS
+				 # WERTE[][32] & RTC_ADR[]==32 & UHR_DS
+				 # WERTE[][33] & RTC_ADR[]==33 & UHR_DS
+				 # WERTE[][34] & RTC_ADR[]==34 & UHR_DS
+				 # WERTE[][35] & RTC_ADR[]==35 & UHR_DS
+				 # WERTE[][36] & RTC_ADR[]==36 & UHR_DS
+				 # WERTE[][37] & RTC_ADR[]==37 & UHR_DS
+				 # WERTE[][38] & RTC_ADR[]==38 & UHR_DS
+				 # WERTE[][39] & RTC_ADR[]==39 & UHR_DS
+				 # WERTE[][40] & RTC_ADR[]==40 & UHR_DS
+				 # WERTE[][41] & RTC_ADR[]==41 & UHR_DS
+				 # WERTE[][42] & RTC_ADR[]==42 & UHR_DS
+				 # WERTE[][43] & RTC_ADR[]==43 & UHR_DS
+				 # WERTE[][44] & RTC_ADR[]==44 & UHR_DS
+				 # WERTE[][45] & RTC_ADR[]==45 & UHR_DS
+				 # WERTE[][46] & RTC_ADR[]==46 & UHR_DS
+				 # WERTE[][47] & RTC_ADR[]==47 & UHR_DS
+				 # WERTE[][48] & RTC_ADR[]==48 & UHR_DS
+				 # WERTE[][49] & RTC_ADR[]==49 & UHR_DS
+				 # WERTE[][50] & RTC_ADR[]==50 & UHR_DS
+				 # WERTE[][51] & RTC_ADR[]==51 & UHR_DS
+				 # WERTE[][52] & RTC_ADR[]==52 & UHR_DS
+				 # WERTE[][53] & RTC_ADR[]==53 & UHR_DS
+				 # WERTE[][54] & RTC_ADR[]==54 & UHR_DS
+				 # WERTE[][55] & RTC_ADR[]==55 & UHR_DS
+				 # WERTE[][56] & RTC_ADR[]==56 & UHR_DS
+				 # WERTE[][57] & RTC_ADR[]==57 & UHR_DS
+				 # WERTE[][58] & RTC_ADR[]==58 & UHR_DS
+				 # WERTE[][59] & RTC_ADR[]==59 & UHR_DS
+				 # WERTE[][60] & RTC_ADR[]==60 & UHR_DS
+				 # WERTE[][61] & RTC_ADR[]==61 & UHR_DS
+				 # WERTE[][62] & RTC_ADR[]==62 & UHR_DS
+				 # WERTE[][63] & RTC_ADR[]==63 & UHR_DS
+				 # (0,RTC_ADR[])			   & UHR_AS
+				 # INT_CTR_CS   & INT_CTR[23..16] 
+				 # INT_ENA_CS   & INT_ENA[23..16]
+				 # INT_LATCH_CS & INT_LATCH[23..16]
+				 # INT_CLEAR_CS & INT_IN[23..16]
+				 # ACP_CONF_CS  & ACP_CONF[23..16]
+				  ,(UHR_DS # UHR_AS # INT_CTR_CS # INT_ENA_CS # INT_LATCH_CS # INT_CLEAR_CS # ACP_CONF_CS) & !nFB_OE);
+	FB_AD[15..8] = lpm_bustri_BYT(
+					INT_CTR_CS   & INT_CTR[15..8] 
+				  #	INT_ENA_CS   & INT_ENA[15..8]
+				  #	INT_LATCH_CS & INT_LATCH[15..8]
+				  # INT_CLEAR_CS & INT_IN[15..8]
+				  # ACP_CONF_CS  & ACP_CONF[15..8]
+				  ,(INT_CTR_CS # INT_ENA_CS # INT_LATCH_CS # INT_CLEAR_CS # ACP_CONF_CS) & !nFB_OE);
+	FB_AD[7..0] = lpm_bustri_BYT(
+					INT_CTR_CS   & INT_CTR[7..0] 
+				  #	INT_ENA_CS   & INT_ENA[7..0]
+				  #	INT_LATCH_CS & INT_LATCH[7..0]
+				  # INT_CLEAR_CS & INT_IN[7..0]
+				  # ACP_CONF_CS  & ACP_CONF[7..0]
+				  ,(INT_CTR_CS # INT_ENA_CS # INT_LATCH_CS # INT_CLEAR_CS # ACP_CONF_CS) & !nFB_OE);
+
+	INT_HANDLER_TA = INT_CTR_CS # INT_ENA_CS # INT_LATCH_CS # INT_CLEAR_CS;
+END;
+
+

@@ -1,0 +1,583 @@
+--altpll_reconfig CBX_AUTO_BLACKBOX="ALL" device_family="Cyclone III" init_from_rom="NO" scan_init_file="./altpll4.mif" busy clock counter_param counter_type data_in data_out pll_areset pll_areset_in pll_configupdate pll_scanclk pll_scanclkena pll_scandata pll_scandataout pll_scandone read_param reconfig reset write_param
+--VERSION_BEGIN 9.1SP2 cbx_altpll_reconfig 2010:03:24:20:43:42:SJ cbx_altsyncram 2010:03:24:20:43:42:SJ cbx_cycloneii 2010:03:24:20:43:43:SJ cbx_lpm_add_sub 2010:03:24:20:43:43:SJ cbx_lpm_compare 2010:03:24:20:43:43:SJ cbx_lpm_counter 2010:03:24:20:43:43:SJ cbx_lpm_decode 2010:03:24:20:43:43:SJ cbx_lpm_mux 2010:03:24:20:43:43:SJ cbx_mgl 2010:03:24:21:01:05:SJ cbx_stratix 2010:03:24:20:43:43:SJ cbx_stratixii 2010:03:24:20:43:43:SJ cbx_stratixiii 2010:03:24:20:43:43:SJ cbx_util_mgl 2010:03:24:20:43:43:SJ  VERSION_END
+
+
+-- Copyright (C) 1991-2010 Altera Corporation
+--  Your use of Altera Corporation's design tools, logic functions 
+--  and other software and tools, and its AMPP partner logic 
+--  functions, and any output files from any of the foregoing 
+--  (including device programming or simulation files), and any 
+--  associated documentation or information are expressly subject 
+--  to the terms and conditions of the Altera Program License 
+--  Subscription Agreement, Altera MegaCore Function License 
+--  Agreement, or other applicable license agreement, including, 
+--  without limitation, that your use is for the sole purpose of 
+--  programming logic devices manufactured by Altera and sold by 
+--  Altera or its authorized distributors.  Please refer to the 
+--  applicable agreement for further details.
+
+
+include "altsyncram.inc";
+FUNCTION cycloneiii_lcell_comb (cin, dataa, datab, datac, datad)
+WITH ( DONT_TOUCH, LUT_MASK, SUM_LUTC_INPUT)
+RETURNS ( combout, cout);
+FUNCTION lpm_add_sub (aclr, add_sub, cin, clken, clock, dataa[LPM_WIDTH-1..0], datab[LPM_WIDTH-1..0])
+WITH ( CARRY_CHAIN, CARRY_CHAIN_LENGTH, LPM_DIRECTION, LPM_PIPELINE, LPM_REPRESENTATION, LPM_WIDTH, ONE_INPUT_IS_CONSTANT, REGISTERED_AT_END, USE_WYS)
+RETURNS ( cout, overflow, result[LPM_WIDTH-1..0]);
+FUNCTION lpm_compare (aclr, clken, clock, dataa[LPM_WIDTH-1..0], datab[LPM_WIDTH-1..0])
+WITH ( LPM_PIPELINE, LPM_REPRESENTATION, LPM_WIDTH, ONE_INPUT_IS_CONSTANT)
+RETURNS ( aeb, agb, ageb, alb, aleb, aneb);
+FUNCTION lpm_counter (aclr, aload, aset, cin, clk_en, clock, cnt_en, data[LPM_WIDTH-1..0], sclr, sload, sset, updown)
+WITH ( lpm_avalue, lpm_direction, lpm_modulus, lpm_port_updown, lpm_pvalue, lpm_svalue, lpm_width)
+RETURNS ( cout, eq[15..0], q[LPM_WIDTH-1..0]);
+FUNCTION lpm_decode (aclr, clken, clock, data[LPM_WIDTH-1..0], enable)
+WITH ( CASCADE_CHAIN, IGNORE_CASCADE_BUFFERS, LPM_DECODES, LPM_PIPELINE, LPM_WIDTH)
+RETURNS ( eq[LPM_DECODES-1..0]);
+
+--synthesis_resources = altsyncram 1 lpm_add_sub 2 lpm_compare 1 lpm_counter 7 lpm_decode 1 lut 3 reg 80 
+OPTIONS ALTERA_INTERNAL_OPTION = "ADV_NETLIST_OPT_ALLOWED=""NEVER_ALLOW"";suppress_da_rule_internal=C106;{-to le_comb10} PLL_SCAN_RECONFIG_COUNTER_REMAP_LCELL=2;{-to le_comb8} PLL_SCAN_RECONFIG_COUNTER_REMAP_LCELL=0;{-to le_comb9} PLL_SCAN_RECONFIG_COUNTER_REMAP_LCELL=1;{-to idle_state} POWER_UP_LEVEL=LOW;{-to read_data_nominal_state} POWER_UP_LEVEL=LOW;{-to read_data_state} POWER_UP_LEVEL=LOW;{-to read_first_nominal_state} POWER_UP_LEVEL=LOW;{-to read_first_state} POWER_UP_LEVEL=LOW;{-to read_init_nominal_state} POWER_UP_LEVEL=LOW;{-to read_init_state} POWER_UP_LEVEL=LOW;{-to read_last_nominal_state} POWER_UP_LEVEL=LOW;{-to read_last_state} POWER_UP_LEVEL=LOW;{-to reconfig_counter_state} POWER_UP_LEVEL=LOW;{-to reconfig_init_state} POWER_UP_LEVEL=LOW;{-to reconfig_post_state} POWER_UP_LEVEL=LOW;{-to reconfig_seq_data_state} POWER_UP_LEVEL=LOW;{-to reconfig_seq_ena_state} POWER_UP_LEVEL=LOW;{-to reconfig_wait_state} POWER_UP_LEVEL=LOW;{-to reset_state} POWER_UP_LEVEL=HIGH;{-to write_data_state} POWER_UP_LEVEL=LOW;{-to write_init_nominal_state} POWER_UP_LEVEL=LOW;{-to write_init_state} POWER_UP_LEVEL=LOW;{-to write_nominal_state} POWER_UP_LEVEL=LOW";
+
+SUBDESIGN altpll_reconfig1_pllrcfg_bju
+( 
+	busy	:	output;
+	clock	:	input;
+	counter_param[2..0]	:	input;
+	counter_type[3..0]	:	input;
+	data_in[8..0]	:	input;
+	data_out[8..0]	:	output;
+	pll_areset	:	output;
+	pll_areset_in	:	input;
+	pll_configupdate	:	output;
+	pll_scanclk	:	output;
+	pll_scanclkena	:	output;
+	pll_scandata	:	output;
+	pll_scandataout	:	input;
+	pll_scandone	:	input;
+	read_param	:	input;
+	reconfig	:	input;
+	reset	:	input;
+	write_param	:	input;
+) 
+VARIABLE 
+	altsyncram4 : altsyncram
+		WITH (
+			INIT_FILE = "./altpll4.mif",
+			NUMWORDS_A = 144,
+			OPERATION_MODE = "SINGLE_PORT",
+			WIDTH_A = 1,
+			WIDTH_BYTEENA_A = 1,
+			WIDTHAD_A = 8
+		);
+	le_comb10 : cycloneiii_lcell_comb
+		WITH (
+			DONT_TOUCH = "on",
+			LUT_MASK = "F0F0",
+			SUM_LUTC_INPUT = "datac"
+		);
+	le_comb8 : cycloneiii_lcell_comb
+		WITH (
+			DONT_TOUCH = "on",
+			LUT_MASK = "AAAA",
+			SUM_LUTC_INPUT = "datac"
+		);
+	le_comb9 : cycloneiii_lcell_comb
+		WITH (
+			DONT_TOUCH = "on",
+			LUT_MASK = "CCCC",
+			SUM_LUTC_INPUT = "datac"
+		);
+	areset_init_state_1 : dffe;
+	areset_state : dffe;
+	C0_data_state : dffe;
+	C0_ena_state : dffe;
+	C1_data_state : dffe;
+	C1_ena_state : dffe;
+	C2_data_state : dffe;
+	C2_ena_state : dffe;
+	C3_data_state : dffe;
+	C3_ena_state : dffe;
+	C4_data_state : dffe;
+	C4_ena_state : dffe;
+	configupdate2_state : dffe;
+	configupdate3_state : dffe;
+	configupdate_state : dffe;
+	counter_param_latch_reg[2..0] : dffe;
+	counter_type_latch_reg[3..0] : dffe;
+	idle_state : dffe
+		WITH (
+			power_up = "low"
+		);
+	nominal_data[17..0] : dffe;
+	read_data_nominal_state : dffe
+		WITH (
+			power_up = "low"
+		);
+	read_data_state : dffe
+		WITH (
+			power_up = "low"
+		);
+	read_first_nominal_state : dffe
+		WITH (
+			power_up = "low"
+		);
+	read_first_state : dffe
+		WITH (
+			power_up = "low"
+		);
+	read_init_nominal_state : dffe
+		WITH (
+			power_up = "low"
+		);
+	read_init_state : dffe
+		WITH (
+			power_up = "low"
+		);
+	read_last_nominal_state : dffe
+		WITH (
+			power_up = "low"
+		);
+	read_last_state : dffe
+		WITH (
+			power_up = "low"
+		);
+	reconfig_counter_state : dffe
+		WITH (
+			power_up = "low"
+		);
+	reconfig_init_state : dffe
+		WITH (
+			power_up = "low"
+		);
+	reconfig_post_state : dffe
+		WITH (
+			power_up = "low"
+		);
+	reconfig_seq_data_state : dffe
+		WITH (
+			power_up = "low"
+		);
+	reconfig_seq_ena_state : dffe
+		WITH (
+			power_up = "low"
+		);
+	reconfig_wait_state : dffe
+		WITH (
+			power_up = "low"
+		);
+	reset_state : dffe
+		WITH (
+			power_up = "high"
+		);
+	shift_reg[17..0] : dffeas;
+	tmp_nominal_data_out_state : dffe;
+	tmp_seq_ena_state : dffe;
+	write_data_state : dffe
+		WITH (
+			power_up = "low"
+		);
+	write_init_nominal_state : dffe
+		WITH (
+			power_up = "low"
+		);
+	write_init_state : dffe
+		WITH (
+			power_up = "low"
+		);
+	write_nominal_state : dffe
+		WITH (
+			power_up = "low"
+		);
+	add_sub5 : lpm_add_sub
+		WITH (
+			LPM_WIDTH = 9
+		);
+	add_sub6 : lpm_add_sub
+		WITH (
+			LPM_WIDTH = 8
+		);
+	cmpr7 : lpm_compare
+		WITH (
+			LPM_WIDTH = 8
+		);
+	cntr1 : lpm_counter
+		WITH (
+			lpm_direction = "DOWN",
+			lpm_modulus = 144,
+			lpm_port_updown = "PORT_UNUSED",
+			lpm_width = 8
+		);
+	cntr12 : lpm_counter
+		WITH (
+			lpm_direction = "DOWN",
+			lpm_modulus = 144,
+			lpm_port_updown = "PORT_UNUSED",
+			lpm_width = 8
+		);
+	cntr13 : lpm_counter
+		WITH (
+			lpm_direction = "DOWN",
+			lpm_port_updown = "PORT_UNUSED",
+			lpm_width = 6
+		);
+	cntr14 : lpm_counter
+		WITH (
+			lpm_direction = "DOWN",
+			lpm_port_updown = "PORT_UNUSED",
+			lpm_width = 5
+		);
+	cntr15 : lpm_counter
+		WITH (
+			lpm_direction = "DOWN",
+			lpm_modulus = 144,
+			lpm_port_updown = "PORT_UNUSED",
+			lpm_width = 8
+		);
+	cntr2 : lpm_counter
+		WITH (
+			lpm_direction = "UP",
+			lpm_port_updown = "PORT_UNUSED",
+			lpm_width = 8
+		);
+	cntr3 : lpm_counter
+		WITH (
+			lpm_direction = "DOWN",
+			lpm_port_updown = "PORT_UNUSED",
+			lpm_width = 5
+		);
+	decode11 : lpm_decode
+		WITH (
+			LPM_DECODES = 5,
+			LPM_WIDTH = 3
+		);
+	addr_counter_enable	: WIRE;
+	addr_counter_out[7..0]	: WIRE;
+	addr_counter_sload	: WIRE;
+	addr_counter_sload_value[7..0]	: WIRE;
+	addr_decoder_out[7..0]	: WIRE;
+	c0_wire[7..0]	: WIRE;
+	c1_wire[7..0]	: WIRE;
+	c2_wire[7..0]	: WIRE;
+	c3_wire[7..0]	: WIRE;
+	c4_wire[7..0]	: WIRE;
+	counter_param_latch[2..0]	: WIRE;
+	counter_type_latch[3..0]	: WIRE;
+	cuda_combout_wire[2..0]	: WIRE;
+	dummy_scandataout	: WIRE;
+	encode_out[2..0]	: WIRE;
+	input_latch_enable	: WIRE;
+	power_up	: WIRE;
+	read_addr_counter_enable	: WIRE;
+	read_addr_counter_out[7..0]	: WIRE;
+	read_addr_counter_sload	: WIRE;
+	read_addr_counter_sload_value[7..0]	: WIRE;
+	read_addr_decoder_out[7..0]	: WIRE;
+	read_nominal_out	: WIRE;
+	reconfig_addr_counter_enable	: WIRE;
+	reconfig_addr_counter_out[7..0]	: WIRE;
+	reconfig_addr_counter_sload	: WIRE;
+	reconfig_addr_counter_sload_value[7..0]	: WIRE;
+	reconfig_done	: WIRE;
+	reconfig_post_done	: WIRE;
+	reconfig_width_counter_done	: WIRE;
+	reconfig_width_counter_enable	: WIRE;
+	reconfig_width_counter_sload	: WIRE;
+	reconfig_width_counter_sload_value[5..0]	: WIRE;
+	rotate_addr_counter_enable	: WIRE;
+	rotate_addr_counter_out[7..0]	: WIRE;
+	rotate_addr_counter_sload	: WIRE;
+	rotate_addr_counter_sload_value[7..0]	: WIRE;
+	rotate_decoder_wires[4..0]	: WIRE;
+	rotate_width_counter_done	: WIRE;
+	rotate_width_counter_enable	: WIRE;
+	rotate_width_counter_sload	: WIRE;
+	rotate_width_counter_sload_value[4..0]	: WIRE;
+	scan_cache_address[7..0]	: WIRE;
+	scan_cache_in	: WIRE;
+	scan_cache_out	: WIRE;
+	scan_cache_write_enable	: WIRE;
+	sel_param_bypass_LF_unused	: WIRE;
+	sel_param_c	: WIRE;
+	sel_param_high_i_postscale	: WIRE;
+	sel_param_low_r	: WIRE;
+	sel_param_nominal_count	: WIRE;
+	sel_param_odd_CP_unused	: WIRE;
+	sel_type_c0	: WIRE;
+	sel_type_c1	: WIRE;
+	sel_type_c2	: WIRE;
+	sel_type_c3	: WIRE;
+	sel_type_c4	: WIRE;
+	sel_type_cplf	: WIRE;
+	sel_type_m	: WIRE;
+	sel_type_n	: WIRE;
+	sel_type_vco	: WIRE;
+	seq_addr_wire[7..0]	: WIRE;
+	seq_sload_value[5..0]	: WIRE;
+	shift_reg_clear	: WIRE;
+	shift_reg_load_enable	: WIRE;
+	shift_reg_load_nominal_enable	: WIRE;
+	shift_reg_serial_in	: WIRE;
+	shift_reg_serial_out	: WIRE;
+	shift_reg_shift_enable	: WIRE;
+	shift_reg_shift_nominal_enable	: WIRE;
+	shift_reg_width_select[7..0]	: WIRE;
+	w1565w	: WIRE;
+	w1592w	: WIRE;
+	w64w	: WIRE;
+	width_counter_done	: WIRE;
+	width_counter_enable	: WIRE;
+	width_counter_sload	: WIRE;
+	width_counter_sload_value[4..0]	: WIRE;
+	width_decoder_out[4..0]	: WIRE;
+	width_decoder_select[7..0]	: WIRE;
+	write_from_rom	: NODE;
+
+BEGIN 
+	altsyncram4.address_a[] = scan_cache_address[];
+	altsyncram4.clock0 = clock;
+	altsyncram4.data_a[] = ( scan_cache_in);
+	altsyncram4.wren_a = scan_cache_write_enable;
+	le_comb10.dataa = encode_out[0..0];
+	le_comb10.datab = encode_out[1..1];
+	le_comb10.datac = encode_out[2..2];
+	le_comb8.dataa = encode_out[0..0];
+	le_comb8.datab = encode_out[1..1];
+	le_comb8.datac = encode_out[2..2];
+	le_comb9.dataa = encode_out[0..0];
+	le_comb9.datab = encode_out[1..1];
+	le_comb9.datac = encode_out[2..2];
+	areset_init_state_1.clk = clock;
+	areset_init_state_1.d = pll_scandone;
+	areset_state.clk = clock;
+	areset_state.d = (areset_init_state_1.q & (! reset));
+	C0_data_state.clk = clock;
+	C0_data_state.d = (C0_ena_state.q # (C0_data_state.q & (! rotate_width_counter_done)));
+	C0_ena_state.clk = clock;
+	C0_ena_state.d = (C1_data_state.q & rotate_width_counter_done);
+	C1_data_state.clk = clock;
+	C1_data_state.d = (C1_ena_state.q # (C1_data_state.q & (! rotate_width_counter_done)));
+	C1_ena_state.clk = clock;
+	C1_ena_state.d = (C2_data_state.q & rotate_width_counter_done);
+	C2_data_state.clk = clock;
+	C2_data_state.d = (C2_ena_state.q # (C2_data_state.q & (! rotate_width_counter_done)));
+	C2_ena_state.clk = clock;
+	C2_ena_state.d = (C3_data_state.q & rotate_width_counter_done);
+	C3_data_state.clk = clock;
+	C3_data_state.d = (C3_ena_state.q # (C3_data_state.q & (! rotate_width_counter_done)));
+	C3_ena_state.clk = clock;
+	C3_ena_state.d = (C4_data_state.q & rotate_width_counter_done);
+	C4_data_state.clk = clock;
+	C4_data_state.d = (C4_ena_state.q # (C4_data_state.q & (! rotate_width_counter_done)));
+	C4_ena_state.clk = clock;
+	C4_ena_state.d = reconfig_init_state.q;
+	configupdate2_state.clk = clock;
+	configupdate2_state.d = configupdate_state.q;
+	configupdate3_state.clk = (! clock);
+	configupdate3_state.d = configupdate2_state.q;
+	configupdate_state.clk = clock;
+	configupdate_state.d = reconfig_post_state.q;
+	counter_param_latch_reg[].clk = clock;
+	counter_param_latch_reg[].clrn = (! reset);
+	counter_param_latch_reg[].d = counter_param[];
+	counter_param_latch_reg[].ena = input_latch_enable;
+	counter_type_latch_reg[].clk = clock;
+	counter_type_latch_reg[].clrn = (! reset);
+	counter_type_latch_reg[].d = counter_type[];
+	counter_type_latch_reg[].ena = input_latch_enable;
+	idle_state.clk = clock;
+	idle_state.clrn = (! reset);
+	idle_state.d = ((((((((((idle_state.q & (! read_param)) & (! write_param)) & (! reconfig)) & (! write_from_rom)) # read_last_state.q) # (write_data_state.q & width_counter_done)) # (write_nominal_state.q & width_counter_done)) # read_last_nominal_state.q) # (reconfig_wait_state.q & reconfig_done)) # reset_state.q);
+	nominal_data[].clk = clock;
+	nominal_data[].clrn = (! reset);
+	nominal_data[].d = ( cmpr7.aeb, data_in[8..0], add_sub6.result[7..0]);
+	read_data_nominal_state.clk = clock;
+	read_data_nominal_state.clrn = (! reset);
+	read_data_nominal_state.d = ((read_first_nominal_state.q & (! width_counter_done)) # (read_data_nominal_state.q & (! width_counter_done)));
+	read_data_state.clk = clock;
+	read_data_state.clrn = (! reset);
+	read_data_state.d = ((read_first_state.q & (! width_counter_done)) # (read_data_state.q & (! width_counter_done)));
+	read_first_nominal_state.clk = clock;
+	read_first_nominal_state.clrn = (! reset);
+	read_first_nominal_state.d = read_init_nominal_state.q;
+	read_first_state.clk = clock;
+	read_first_state.clrn = (! reset);
+	read_first_state.d = read_init_state.q;
+	read_init_nominal_state.clk = clock;
+	read_init_nominal_state.clrn = (! reset);
+	read_init_nominal_state.d = ((idle_state.q & read_param) & ((((((! counter_type[3..3]) & (! counter_type[2..2])) & (! counter_type[1..1])) & counter_param[2..2]) & counter_param[1..1]) & counter_param[0..0]));
+	read_init_state.clk = clock;
+	read_init_state.clrn = (! reset);
+	read_init_state.d = ((idle_state.q & read_param) & (! ((((((! counter_type[3..3]) & (! counter_type[2..2])) & (! counter_type[1..1])) & counter_param[2..2]) & counter_param[1..1]) & counter_param[0..0])));
+	read_last_nominal_state.clk = clock;
+	read_last_nominal_state.clrn = (! reset);
+	read_last_nominal_state.d = ((read_first_nominal_state.q & width_counter_done) # (read_data_nominal_state.q & width_counter_done));
+	read_last_state.clk = clock;
+	read_last_state.clrn = (! reset);
+	read_last_state.d = ((read_first_state.q & width_counter_done) # (read_data_state.q & width_counter_done));
+	reconfig_counter_state.clk = clock;
+	reconfig_counter_state.clrn = (! reset);
+	reconfig_counter_state.d = ((((((((((reconfig_init_state.q # C0_data_state.q) # C1_data_state.q) # C2_data_state.q) # C3_data_state.q) # C4_data_state.q) # C0_ena_state.q) # C1_ena_state.q) # C2_ena_state.q) # C3_ena_state.q) # C4_ena_state.q);
+	reconfig_init_state.clk = clock;
+	reconfig_init_state.clrn = (! reset);
+	reconfig_init_state.d = (idle_state.q & reconfig);
+	reconfig_post_state.clk = clock;
+	reconfig_post_state.clrn = (! reset);
+	reconfig_post_state.d = ((reconfig_seq_data_state.q & reconfig_width_counter_done) # (reconfig_post_state.q & (! reconfig_post_done)));
+	reconfig_seq_data_state.clk = clock;
+	reconfig_seq_data_state.clrn = (! reset);
+	reconfig_seq_data_state.d = (reconfig_seq_ena_state.q # (reconfig_seq_data_state.q & (! reconfig_width_counter_done)));
+	reconfig_seq_ena_state.clk = clock;
+	reconfig_seq_ena_state.clrn = (! reset);
+	reconfig_seq_ena_state.d = tmp_seq_ena_state.q;
+	reconfig_wait_state.clk = clock;
+	reconfig_wait_state.clrn = (! reset);
+	reconfig_wait_state.d = ((reconfig_post_state.q & reconfig_post_done) # (reconfig_wait_state.q & (! reconfig_done)));
+	reset_state.clk = clock;
+	reset_state.d = power_up;
+	reset_state.prn = (! reset);
+	shift_reg[].clk = clock;
+	shift_reg[].clrn = (! reset);
+	shift_reg[].d = ( ((((shift_reg_load_nominal_enable & nominal_data[0].q) # (shift_reg_load_enable & data_in[0..0])) # (shift_reg_shift_enable & shift_reg[16].q)) # (shift_reg_shift_nominal_enable & shift_reg[16].q)), ((((shift_reg_load_nominal_enable & nominal_data[1].q) # (shift_reg_load_enable & data_in[1..1])) # (shift_reg_shift_enable & shift_reg[15].q)) # (shift_reg_shift_nominal_enable & shift_reg[15].q)), ((((shift_reg_load_nominal_enable & nominal_data[2].q) # (shift_reg_load_enable & data_in[2..2])) # (shift_reg_shift_enable & shift_reg[14].q)) # (shift_reg_shift_nominal_enable & shift_reg[14].q)), ((((shift_reg_load_nominal_enable & nominal_data[3].q) # (shift_reg_load_enable & data_in[3..3])) # (shift_reg_shift_enable & shift_reg[13].q)) # (shift_reg_shift_nominal_enable & shift_reg[13].q)), ((((shift_reg_load_nominal_enable & nominal_data[4].q) # (shift_reg_load_enable & data_in[4..4])) # (shift_reg_shift_enable & shift_reg[12].q)) # (shift_reg_shift_nominal_enable & shift_reg[12].q)), ((((shift_reg_load_nominal_enable & nominal_data[5].q) # (shift_reg_load_enable & data_in[5..5])) # (shift_reg_shift_enable & shift_reg[11].q)) # (shift_reg_shift_nominal_enable & shift_reg[11].q)), ((((shift_reg_load_nominal_enable & nominal_data[6].q) # (shift_reg_load_enable & data_in[6..6])) # (shift_reg_shift_enable & shift_reg[10].q)) # (shift_reg_shift_nominal_enable & shift_reg[10].q)), ((((shift_reg_load_nominal_enable & nominal_data[7].q) # (shift_reg_load_enable & data_in[7..7])) # (shift_reg_shift_enable & shift_reg[9].q)) # (shift_reg_shift_nominal_enable & shift_reg[9].q)), ((((shift_reg_load_nominal_enable & nominal_data[8].q) # (shift_reg_load_enable & data_in[8..8])) # (shift_reg_shift_enable & shift_reg[8].q)) # (shift_reg_shift_nominal_enable & shift_reg[8].q)), ((((shift_reg_load_nominal_enable & nominal_data[9].q) # (shift_reg_load_enable & w64w)) # (shift_reg_shift_enable & shift_reg[7].q)) # (shift_reg_shift_nominal_enable & shift_reg[7].q)), ((((shift_reg_load_nominal_enable & nominal_data[10].q) # (shift_reg_load_enable & w64w)) # (shift_reg_shift_enable & shift_reg[6].q)) # (shift_reg_shift_nominal_enable & shift_reg[6].q)), ((((shift_reg_load_nominal_enable & nominal_data[11].q) # (shift_reg_load_enable & w64w)) # (shift_reg_shift_enable & shift_reg[5].q)) # (shift_reg_shift_nominal_enable & shift_reg[5].q)), ((((shift_reg_load_nominal_enable & nominal_data[12].q) # (shift_reg_load_enable & w64w)) # (shift_reg_shift_enable & shift_reg[4].q)) # (shift_reg_shift_nominal_enable & shift_reg[4].q)), ((((shift_reg_load_nominal_enable & nominal_data[13].q) # (shift_reg_load_enable & w64w)) # (shift_reg_shift_enable & shift_reg[3].q)) # (shift_reg_shift_nominal_enable & shift_reg[3].q)), ((((shift_reg_load_nominal_enable & nominal_data[14].q) # (shift_reg_load_enable & w64w)) # (shift_reg_shift_enable & shift_reg[2].q)) # (shift_reg_shift_nominal_enable & shift_reg[2].q)), ((((shift_reg_load_nominal_enable & nominal_data[15].q) # (shift_reg_load_enable & w64w)) # (shift_reg_shift_enable & shift_reg[1].q)) # (shift_reg_shift_nominal_enable & shift_reg[1].q)), ((((shift_reg_load_nominal_enable & nominal_data[16].q) # (shift_reg_load_enable & w64w)) # (shift_reg_shift_enable & shift_reg[0].q)) # (shift_reg_shift_nominal_enable & shift_reg[0].q)), ((((shift_reg_load_nominal_enable & nominal_data[17].q) # (shift_reg_load_enable & w64w)) # (shift_reg_shift_enable & shift_reg_serial_in)) # (shift_reg_shift_nominal_enable & shift_reg_serial_in)));
+	shift_reg[].ena = ((((shift_reg_load_enable # shift_reg_shift_enable) # shift_reg_load_nominal_enable) # shift_reg_shift_nominal_enable) # shift_reg_clear);
+	shift_reg[].sclr = shift_reg_clear;
+	tmp_nominal_data_out_state.clk = clock;
+	tmp_nominal_data_out_state.d = ((read_last_nominal_state.q & (! idle_state.q)) # (tmp_nominal_data_out_state.q & idle_state.q));
+	tmp_seq_ena_state.clk = clock;
+	tmp_seq_ena_state.d = (reconfig_counter_state.q & (C0_data_state.q & rotate_width_counter_done));
+	write_data_state.clk = clock;
+	write_data_state.clrn = (! reset);
+	write_data_state.d = (write_init_state.q # (write_data_state.q & (! width_counter_done)));
+	write_init_nominal_state.clk = clock;
+	write_init_nominal_state.clrn = (! reset);
+	write_init_nominal_state.d = ((idle_state.q & write_param) & ((((((! counter_type[3..3]) & (! counter_type[2..2])) & (! counter_type[1..1])) & counter_param[2..2]) & counter_param[1..1]) & counter_param[0..0]));
+	write_init_state.clk = clock;
+	write_init_state.clrn = (! reset);
+	write_init_state.d = ((idle_state.q & write_param) & (! ((((((! counter_type[3..3]) & (! counter_type[2..2])) & (! counter_type[1..1])) & counter_param[2..2]) & counter_param[1..1]) & counter_param[0..0])));
+	write_nominal_state.clk = clock;
+	write_nominal_state.clrn = (! reset);
+	write_nominal_state.d = (write_init_nominal_state.q # (write_nominal_state.q & (! width_counter_done)));
+	add_sub5.cin = B"0";
+	add_sub5.dataa[] = ( B"0", shift_reg[8..1].q);
+	add_sub5.datab[] = ( B"0", shift_reg[17..10].q);
+	add_sub6.cin = data_in[0..0];
+	add_sub6.dataa[] = ( data_in[8..1]);
+	cmpr7.dataa[] = ( data_in[7..0]);
+	cmpr7.datab[] = B"00000001";
+	cntr1.clock = clock;
+	cntr1.cnt_en = addr_counter_enable;
+	cntr1.data[] = addr_counter_sload_value[];
+	cntr1.sload = addr_counter_sload;
+	cntr12.clock = clock;
+	cntr12.cnt_en = reconfig_addr_counter_enable;
+	cntr12.data[] = reconfig_addr_counter_sload_value[];
+	cntr12.sload = reconfig_addr_counter_sload;
+	cntr13.clock = clock;
+	cntr13.cnt_en = reconfig_width_counter_enable;
+	cntr13.data[] = reconfig_width_counter_sload_value[];
+	cntr13.sload = reconfig_width_counter_sload;
+	cntr14.clock = clock;
+	cntr14.cnt_en = rotate_width_counter_enable;
+	cntr14.data[] = rotate_width_counter_sload_value[];
+	cntr14.sload = rotate_width_counter_sload;
+	cntr15.clock = clock;
+	cntr15.cnt_en = rotate_addr_counter_enable;
+	cntr15.data[] = rotate_addr_counter_sload_value[];
+	cntr15.sload = rotate_addr_counter_sload;
+	cntr2.clock = clock;
+	cntr2.cnt_en = read_addr_counter_enable;
+	cntr2.data[] = read_addr_counter_sload_value[];
+	cntr2.sload = read_addr_counter_sload;
+	cntr3.clock = clock;
+	cntr3.cnt_en = width_counter_enable;
+	cntr3.data[] = width_counter_sload_value[];
+	cntr3.sload = width_counter_sload;
+	decode11.data[] = cuda_combout_wire[];
+	addr_counter_enable = (write_data_state.q # write_nominal_state.q);
+	addr_counter_out[] = cntr1.q[];
+	addr_counter_sload = (write_init_state.q # write_init_nominal_state.q);
+	addr_counter_sload_value[] = (addr_decoder_out[] & (write_init_state.q # write_init_nominal_state.q));
+	addr_decoder_out[] = (((((((((((((((((((((((((((((((((((( B"0", B"0", B"0", B"0", B"0", B"0", B"0", (sel_type_cplf & sel_param_bypass_LF_unused)) # ( B"0", B"0", B"0", B"0", B"0", B"0", (sel_type_cplf & sel_param_c), (sel_type_cplf & sel_param_c))) # ( B"0", B"0", B"0", B"0", (sel_type_cplf & sel_param_low_r), B"0", B"0", B"0")) # ( B"0", B"0", B"0", B"0", (sel_type_vco & sel_param_high_i_postscale), B"0", B"0", (sel_type_vco & sel_param_high_i_postscale))) # ( B"0", B"0", B"0", B"0", (sel_type_cplf & sel_param_odd_CP_unused), (sel_type_cplf & sel_param_odd_CP_unused), (sel_type_cplf & sel_param_odd_CP_unused), B"0")) # ( B"0", B"0", B"0", (sel_type_cplf & sel_param_high_i_postscale), B"0", B"0", B"0", (sel_type_cplf & sel_param_high_i_postscale))) # ( B"0", B"0", B"0", (sel_type_n & sel_param_bypass_LF_unused), B"0", B"0", (sel_type_n & sel_param_bypass_LF_unused), B"0")) # ( B"0", B"0", B"0", (sel_type_n & sel_param_high_i_postscale), (sel_type_n & sel_param_high_i_postscale), B"0", (sel_type_n & sel_param_high_i_postscale), B"0")) # ( B"0", B"0", B"0", (sel_type_n & sel_param_odd_CP_unused), (sel_type_n & sel_param_odd_CP_unused), B"0", (sel_type_n & sel_param_odd_CP_unused), (sel_type_n & sel_param_odd_CP_unused))) # ( B"0", B"0", (sel_type_n & sel_param_low_r), B"0", B"0", B"0", (sel_type_n & sel_param_low_r), (sel_type_n & sel_param_low_r))) # ( B"0", B"0", (sel_type_n & sel_param_nominal_count), B"0", B"0", B"0", (sel_type_n & sel_param_nominal_count), (sel_type_n & sel_param_nominal_count))) # ( B"0", B"0", (sel_type_m & sel_param_bypass_LF_unused), B"0", B"0", (sel_type_m & sel_param_bypass_LF_unused), B"0", B"0")) # ( B"0", B"0", (sel_type_m & sel_param_high_i_postscale), B"0", (sel_type_m & sel_param_high_i_postscale), (sel_type_m & sel_param_high_i_postscale), B"0", B"0")) # ( B"0", B"0", (sel_type_m & sel_param_odd_CP_unused), B"0", (sel_type_m & sel_param_odd_CP_unused), (sel_type_m & sel_param_odd_CP_unused), B"0", (sel_type_m & sel_param_odd_CP_unused))) # ( B"0", B"0", (sel_type_m & sel_param_low_r), (sel_type_m & sel_param_low_r), B"0", (sel_type_m & sel_param_low_r), B"0", (sel_type_m & sel_param_low_r))) # ( B"0", B"0", (sel_type_m & sel_param_nominal_count), (sel_type_m & sel_param_nominal_count), B"0", (sel_type_m & sel_param_nominal_count), B"0", (sel_type_m & sel_param_nominal_count))) # ( B"0", B"0", (sel_type_c0 & sel_param_bypass_LF_unused), (sel_type_c0 & sel_param_bypass_LF_unused), B"0", (sel_type_c0 & sel_param_bypass_LF_unused), (sel_type_c0 & sel_param_bypass_LF_unused), B"0")) # ( B"0", B"0", (sel_type_c0 & sel_param_high_i_postscale), (sel_type_c0 & sel_param_high_i_postscale), (sel_type_c0 & sel_param_high_i_postscale), (sel_type_c0 & sel_param_high_i_postscale), (sel_type_c0 & sel_param_high_i_postscale), B"0")) # ( B"0", B"0", (sel_type_c0 & sel_param_odd_CP_unused), (sel_type_c0 & sel_param_odd_CP_unused), (sel_type_c0 & sel_param_odd_CP_unused), (sel_type_c0 & sel_param_odd_CP_unused), (sel_type_c0 & sel_param_odd_CP_unused), (sel_type_c0 & sel_param_odd_CP_unused))) # ( B"0", (sel_type_c0 & sel_param_low_r), B"0", B"0", B"0", (sel_type_c0 & sel_param_low_r), (sel_type_c0 & sel_param_low_r), (sel_type_c0 & sel_param_low_r))) # ( B"0", (sel_type_c1 & sel_param_bypass_LF_unused), B"0", B"0", (sel_type_c1 & sel_param_bypass_LF_unused), B"0", B"0", B"0")) # ( B"0", (sel_type_c1 & sel_param_high_i_postscale), B"0", (sel_type_c1 & sel_param_high_i_postscale), B"0", B"0", B"0", B"0")) # ( B"0", (sel_type_c1 & sel_param_odd_CP_unused), B"0", (sel_type_c1 & sel_param_odd_CP_unused), B"0", B"0", B"0", (sel_type_c1 & sel_param_odd_CP_unused))) # ( B"0", (sel_type_c1 & sel_param_low_r), B"0", (sel_type_c1 & sel_param_low_r), (sel_type_c1 & sel_param_low_r), B"0", B"0", (sel_type_c1 & sel_param_low_r))) # ( B"0", (sel_type_c2 & sel_param_bypass_LF_unused), B"0", (sel_type_c2 & sel_param_bypass_LF_unused), (sel_type_c2 & sel_param_bypass_LF_unused), B"0", (sel_type_c2 & sel_param_bypass_LF_unused), B"0")) # ( B"0", (sel_type_c2 & sel_param_high_i_postscale), (sel_type_c2 & sel_param_high_i_postscale), B"0", B"0", B"0", (sel_type_c2 & sel_param_high_i_postscale), B"0")) # ( B"0", (sel_type_c2 & sel_param_odd_CP_unused), (sel_type_c2 & sel_param_odd_CP_unused), B"0", B"0", B"0", (sel_type_c2 & sel_param_odd_CP_unused), (sel_type_c2 & sel_param_odd_CP_unused))) # ( B"0", (sel_type_c2 & sel_param_low_r), (sel_type_c2 & sel_param_low_r), B"0", (sel_type_c2 & sel_param_low_r), B"0", (sel_type_c2 & sel_param_low_r), (sel_type_c2 & sel_param_low_r))) # ( B"0", (sel_type_c3 & sel_param_bypass_LF_unused), (sel_type_c3 & sel_param_bypass_LF_unused), B"0", (sel_type_c3 & sel_param_bypass_LF_unused), (sel_type_c3 & sel_param_bypass_LF_unused), B"0", B"0")) # ( B"0", (sel_type_c3 & sel_param_high_i_postscale), (sel_type_c3 & sel_param_high_i_postscale), (sel_type_c3 & sel_param_high_i_postscale), B"0", (sel_type_c3 & sel_param_high_i_postscale), B"0", B"0")) # ( B"0", (sel_type_c3 & sel_param_odd_CP_unused), (sel_type_c3 & sel_param_odd_CP_unused), (sel_type_c3 & sel_param_odd_CP_unused), B"0", (sel_type_c3 & sel_param_odd_CP_unused), B"0", (sel_type_c3 & sel_param_odd_CP_unused))) # ( B"0", (sel_type_c3 & sel_param_low_r), (sel_type_c3 & sel_param_low_r), (sel_type_c3 & sel_param_low_r), (sel_type_c3 & sel_param_low_r), (sel_type_c3 & sel_param_low_r), B"0", (sel_type_c3 & sel_param_low_r))) # ( B"0", (sel_type_c4 & sel_param_bypass_LF_unused), (sel_type_c4 & sel_param_bypass_LF_unused), (sel_type_c4 & sel_param_bypass_LF_unused), (sel_type_c4 & sel_param_bypass_LF_unused), (sel_type_c4 & sel_param_bypass_LF_unused), (sel_type_c4 & sel_param_bypass_LF_unused), B"0")) # ( (sel_type_c4 & sel_param_high_i_postscale), B"0", B"0", B"0", B"0", (sel_type_c4 & sel_param_high_i_postscale), (sel_type_c4 & sel_param_high_i_postscale), B"0")) # ( (sel_type_c4 & sel_param_odd_CP_unused), B"0", B"0", B"0", B"0", (sel_type_c4 & sel_param_odd_CP_unused), (sel_type_c4 & sel_param_odd_CP_unused), (sel_type_c4 & sel_param_odd_CP_unused))) # ( (sel_type_c4 & sel_param_low_r), B"0", B"0", B"0", (sel_type_c4 & sel_param_low_r), (sel_type_c4 & sel_param_low_r), (sel_type_c4 & sel_param_low_r), (sel_type_c4 & sel_param_low_r)));
+	busy = ((! idle_state.q) # areset_state.q);
+	c0_wire[] = B"01000111";
+	c1_wire[] = B"01011001";
+	c2_wire[] = B"01101011";
+	c3_wire[] = B"01111101";
+	c4_wire[] = B"10001111";
+	counter_param_latch[] = counter_param_latch_reg[].q;
+	counter_type_latch[] = counter_type_latch_reg[].q;
+	cuda_combout_wire[] = ( le_comb10.combout, le_comb9.combout, le_comb8.combout);
+	data_out[] = ( ((shift_reg[8].q & (! read_nominal_out)) # (add_sub5.result[8..8] & read_nominal_out)), ((shift_reg[7].q & (! read_nominal_out)) # (add_sub5.result[7..7] & read_nominal_out)), ((shift_reg[6].q & (! read_nominal_out)) # (add_sub5.result[6..6] & read_nominal_out)), ((shift_reg[5].q & (! read_nominal_out)) # (add_sub5.result[5..5] & read_nominal_out)), ((shift_reg[4].q & (! read_nominal_out)) # (add_sub5.result[4..4] & read_nominal_out)), ((shift_reg[3].q & (! read_nominal_out)) # (add_sub5.result[3..3] & read_nominal_out)), ((shift_reg[2].q & (! read_nominal_out)) # (add_sub5.result[2..2] & read_nominal_out)), ((shift_reg[1].q & (! read_nominal_out)) # (add_sub5.result[1..1] & read_nominal_out)), ((shift_reg[0].q & (! read_nominal_out)) # (add_sub5.result[0..0] & read_nominal_out)));
+	dummy_scandataout = pll_scandataout;
+	encode_out[] = ( C4_ena_state.q, (C2_ena_state.q # C3_ena_state.q), (C1_ena_state.q # C3_ena_state.q));
+	input_latch_enable = (idle_state.q & (write_param # read_param));
+	pll_areset = (pll_areset_in # (areset_state.q & reconfig_wait_state.q));
+	pll_configupdate = (configupdate_state.q & (! configupdate3_state.q));
+	pll_scanclk = clock;
+	pll_scanclkena = ((rotate_width_counter_enable & (! rotate_width_counter_done)) # reconfig_seq_data_state.q);
+	pll_scandata = (scan_cache_out & ((rotate_width_counter_enable # reconfig_seq_data_state.q) # reconfig_post_state.q));
+	power_up = ((((((((((((((((((((! reset_state.q) & (! idle_state.q)) & (! read_init_state.q)) & (! read_first_state.q)) & (! read_data_state.q)) & (! read_last_state.q)) & (! read_init_nominal_state.q)) & (! read_first_nominal_state.q)) & (! read_data_nominal_state.q)) & (! read_last_nominal_state.q)) & (! write_init_state.q)) & (! write_data_state.q)) & (! write_init_nominal_state.q)) & (! write_nominal_state.q)) & (! reconfig_init_state.q)) & (! reconfig_counter_state.q)) & (! reconfig_seq_ena_state.q)) & (! reconfig_seq_data_state.q)) & (! reconfig_post_state.q)) & (! reconfig_wait_state.q));
+	read_addr_counter_enable = (((read_first_state.q # read_data_state.q) # read_first_nominal_state.q) # read_data_nominal_state.q);
+	read_addr_counter_out[] = cntr2.q[];
+	read_addr_counter_sload = (read_init_state.q # read_init_nominal_state.q);
+	read_addr_counter_sload_value[] = (read_addr_decoder_out[] & (read_init_state.q # read_init_nominal_state.q));
+	read_addr_decoder_out[] = (((((((((((((((((((((((((((((((((((( B"0", B"0", B"0", B"0", B"0", B"0", B"0", B"0") # ( B"0", B"0", B"0", B"0", B"0", B"0", (sel_type_cplf & sel_param_c), B"0")) # ( B"0", B"0", B"0", B"0", B"0", (sel_type_cplf & sel_param_low_r), B"0", B"0")) # ( B"0", B"0", B"0", B"0", (sel_type_vco & sel_param_high_i_postscale), B"0", B"0", (sel_type_vco & sel_param_high_i_postscale))) # ( B"0", B"0", B"0", B"0", (sel_type_cplf & sel_param_odd_CP_unused), B"0", (sel_type_cplf & sel_param_odd_CP_unused), B"0")) # ( B"0", B"0", B"0", B"0", (sel_type_cplf & sel_param_high_i_postscale), (sel_type_cplf & sel_param_high_i_postscale), (sel_type_cplf & sel_param_high_i_postscale), (sel_type_cplf & sel_param_high_i_postscale))) # ( B"0", B"0", B"0", (sel_type_n & sel_param_bypass_LF_unused), B"0", B"0", (sel_type_n & sel_param_bypass_LF_unused), B"0")) # ( B"0", B"0", B"0", (sel_type_n & sel_param_high_i_postscale), B"0", B"0", (sel_type_n & sel_param_high_i_postscale), (sel_type_n & sel_param_high_i_postscale))) # ( B"0", B"0", B"0", (sel_type_n & sel_param_odd_CP_unused), (sel_type_n & sel_param_odd_CP_unused), B"0", (sel_type_n & sel_param_odd_CP_unused), (sel_type_n & sel_param_odd_CP_unused))) # ( B"0", B"0", B"0", (sel_type_n & sel_param_low_r), (sel_type_n & sel_param_low_r), (sel_type_n & sel_param_low_r), B"0", B"0")) # ( B"0", B"0", B"0", (sel_type_n & sel_param_nominal_count), B"0", B"0", (sel_type_n & sel_param_nominal_count), B"0")) # ( B"0", B"0", (sel_type_m & sel_param_bypass_LF_unused), B"0", B"0", (sel_type_m & sel_param_bypass_LF_unused), B"0", B"0")) # ( B"0", B"0", (sel_type_m & sel_param_high_i_postscale), B"0", B"0", (sel_type_m & sel_param_high_i_postscale), B"0", (sel_type_m & sel_param_high_i_postscale))) # ( B"0", B"0", (sel_type_m & sel_param_odd_CP_unused), B"0", (sel_type_m & sel_param_odd_CP_unused), (sel_type_m & sel_param_odd_CP_unused), B"0", (sel_type_m & sel_param_odd_CP_unused))) # ( B"0", B"0", (sel_type_m & sel_param_low_r), B"0", (sel_type_m & sel_param_low_r), (sel_type_m & sel_param_low_r), (sel_type_m & sel_param_low_r), B"0")) # ( B"0", B"0", (sel_type_m & sel_param_nominal_count), B"0", B"0", (sel_type_m & sel_param_nominal_count), B"0", B"0")) # ( B"0", B"0", (sel_type_c0 & sel_param_bypass_LF_unused), (sel_type_c0 & sel_param_bypass_LF_unused), B"0", (sel_type_c0 & sel_param_bypass_LF_unused), (sel_type_c0 & sel_param_bypass_LF_unused), B"0")) # ( B"0", B"0", (sel_type_c0 & sel_param_high_i_postscale), (sel_type_c0 & sel_param_high_i_postscale), B"0", (sel_type_c0 & sel_param_high_i_postscale), (sel_type_c0 & sel_param_high_i_postscale), (sel_type_c0 & sel_param_high_i_postscale))) # ( B"0", B"0", (sel_type_c0 & sel_param_odd_CP_unused), (sel_type_c0 & sel_param_odd_CP_unused), (sel_type_c0 & sel_param_odd_CP_unused), (sel_type_c0 & sel_param_odd_CP_unused), (sel_type_c0 & sel_param_odd_CP_unused), (sel_type_c0 & sel_param_odd_CP_unused))) # ( B"0", (sel_type_c0 & sel_param_low_r), B"0", B"0", B"0", B"0", B"0", B"0")) # ( B"0", (sel_type_c1 & sel_param_bypass_LF_unused), B"0", B"0", (sel_type_c1 & sel_param_bypass_LF_unused), B"0", B"0", B"0")) # ( B"0", (sel_type_c1 & sel_param_high_i_postscale), B"0", B"0", (sel_type_c1 & sel_param_high_i_postscale), B"0", B"0", (sel_type_c1 & sel_param_high_i_postscale))) # ( B"0", (sel_type_c1 & sel_param_odd_CP_unused), B"0", (sel_type_c1 & sel_param_odd_CP_unused), B"0", B"0", B"0", (sel_type_c1 & sel_param_odd_CP_unused))) # ( B"0", (sel_type_c1 & sel_param_low_r), B"0", (sel_type_c1 & sel_param_low_r), B"0", B"0", (sel_type_c1 & sel_param_low_r), B"0")) # ( B"0", (sel_type_c2 & sel_param_bypass_LF_unused), B"0", (sel_type_c2 & sel_param_bypass_LF_unused), (sel_type_c2 & sel_param_bypass_LF_unused), B"0", (sel_type_c2 & sel_param_bypass_LF_unused), B"0")) # ( B"0", (sel_type_c2 & sel_param_high_i_postscale), B"0", (sel_type_c2 & sel_param_high_i_postscale), (sel_type_c2 & sel_param_high_i_postscale), B"0", (sel_type_c2 & sel_param_high_i_postscale), (sel_type_c2 & sel_param_high_i_postscale))) # ( B"0", (sel_type_c2 & sel_param_odd_CP_unused), (sel_type_c2 & sel_param_odd_CP_unused), B"0", B"0", B"0", (sel_type_c2 & sel_param_odd_CP_unused), (sel_type_c2 & sel_param_odd_CP_unused))) # ( B"0", (sel_type_c2 & sel_param_low_r), (sel_type_c2 & sel_param_low_r), B"0", B"0", (sel_type_c2 & sel_param_low_r), B"0", B"0")) # ( B"0", (sel_type_c3 & sel_param_bypass_LF_unused), (sel_type_c3 & sel_param_bypass_LF_unused), B"0", (sel_type_c3 & sel_param_bypass_LF_unused), (sel_type_c3 & sel_param_bypass_LF_unused), B"0", B"0")) # ( B"0", (sel_type_c3 & sel_param_high_i_postscale), (sel_type_c3 & sel_param_high_i_postscale), B"0", (sel_type_c3 & sel_param_high_i_postscale), (sel_type_c3 & sel_param_high_i_postscale), B"0", (sel_type_c3 & sel_param_high_i_postscale))) # ( B"0", (sel_type_c3 & sel_param_odd_CP_unused), (sel_type_c3 & sel_param_odd_CP_unused), (sel_type_c3 & sel_param_odd_CP_unused), B"0", (sel_type_c3 & sel_param_odd_CP_unused), B"0", (sel_type_c3 & sel_param_odd_CP_unused))) # ( B"0", (sel_type_c3 & sel_param_low_r), (sel_type_c3 & sel_param_low_r), (sel_type_c3 & sel_param_low_r), B"0", (sel_type_c3 & sel_param_low_r), (sel_type_c3 & sel_param_low_r), B"0")) # ( B"0", (sel_type_c4 & sel_param_bypass_LF_unused), (sel_type_c4 & sel_param_bypass_LF_unused), (sel_type_c4 & sel_param_bypass_LF_unused), (sel_type_c4 & sel_param_bypass_LF_unused), (sel_type_c4 & sel_param_bypass_LF_unused), (sel_type_c4 & sel_param_bypass_LF_unused), B"0")) # ( B"0", (sel_type_c4 & sel_param_high_i_postscale), (sel_type_c4 & sel_param_high_i_postscale), (sel_type_c4 & sel_param_high_i_postscale), (sel_type_c4 & sel_param_high_i_postscale), (sel_type_c4 & sel_param_high_i_postscale), (sel_type_c4 & sel_param_high_i_postscale), (sel_type_c4 & sel_param_high_i_postscale))) # ( (sel_type_c4 & sel_param_odd_CP_unused), B"0", B"0", B"0", B"0", (sel_type_c4 & sel_param_odd_CP_unused), (sel_type_c4 & sel_param_odd_CP_unused), (sel_type_c4 & sel_param_odd_CP_unused))) # ( (sel_type_c4 & sel_param_low_r), B"0", B"0", B"0", (sel_type_c4 & sel_param_low_r), B"0", B"0", B"0"));
+	read_nominal_out = tmp_nominal_data_out_state.q;
+	reconfig_addr_counter_enable = reconfig_seq_data_state.q;
+	reconfig_addr_counter_out[] = cntr12.q[];
+	reconfig_addr_counter_sload = reconfig_seq_ena_state.q;
+	reconfig_addr_counter_sload_value[] = (reconfig_seq_ena_state.q & seq_addr_wire[]);
+	reconfig_done = ((! pll_scandone) & (dummy_scandataout # (! dummy_scandataout)));
+	reconfig_post_done = pll_scandone;
+	reconfig_width_counter_done = ((((((! cntr13.q[0..0]) & (! cntr13.q[1..1])) & (! cntr13.q[2..2])) & (! cntr13.q[3..3])) & (! cntr13.q[4..4])) & (! cntr13.q[5..5]));
+	reconfig_width_counter_enable = reconfig_seq_data_state.q;
+	reconfig_width_counter_sload = reconfig_seq_ena_state.q;
+	reconfig_width_counter_sload_value[] = (reconfig_seq_ena_state.q & seq_sload_value[]);
+	rotate_addr_counter_enable = ((((C0_data_state.q # C1_data_state.q) # C2_data_state.q) # C3_data_state.q) # C4_data_state.q);
+	rotate_addr_counter_out[] = cntr15.q[];
+	rotate_addr_counter_sload = ((((C0_ena_state.q # C1_ena_state.q) # C2_ena_state.q) # C3_ena_state.q) # C4_ena_state.q);
+	rotate_addr_counter_sload_value[] = (((((c0_wire[] & rotate_decoder_wires[0..0]) # (c1_wire[] & rotate_decoder_wires[1..1])) # (c2_wire[] & rotate_decoder_wires[2..2])) # (c3_wire[] & rotate_decoder_wires[3..3])) # (c4_wire[] & rotate_decoder_wires[4..4]));
+	rotate_decoder_wires[] = decode11.eq[];
+	rotate_width_counter_done = (((((! cntr14.q[0..0]) & (! cntr14.q[1..1])) & (! cntr14.q[2..2])) & (! cntr14.q[3..3])) & (! cntr14.q[4..4]));
+	rotate_width_counter_enable = ((((C0_data_state.q # C1_data_state.q) # C2_data_state.q) # C3_data_state.q) # C4_data_state.q);
+	rotate_width_counter_sload = ((((C0_ena_state.q # C1_ena_state.q) # C2_ena_state.q) # C3_ena_state.q) # C4_ena_state.q);
+	rotate_width_counter_sload_value[] = B"10010";
+	scan_cache_address[] = ((((addr_counter_out[] & addr_counter_enable) # (read_addr_counter_out[] & read_addr_counter_enable)) # (rotate_addr_counter_out[] & rotate_addr_counter_enable)) # (reconfig_addr_counter_out[] & reconfig_addr_counter_enable));
+	scan_cache_in = shift_reg_serial_out;
+	scan_cache_out = altsyncram4.q_a[0..0];
+	scan_cache_write_enable = (write_data_state.q # write_nominal_state.q);
+	sel_param_bypass_LF_unused = (((! counter_param_latch[0..0]) & (! counter_param_latch[1..1])) & counter_param_latch[2..2]);
+	sel_param_c = (((! counter_param_latch[0..0]) & counter_param_latch[1..1]) & (! counter_param_latch[2..2]));
+	sel_param_high_i_postscale = (((! counter_param_latch[0..0]) & (! counter_param_latch[1..1])) & (! counter_param_latch[2..2]));
+	sel_param_low_r = ((counter_param_latch[0..0] & (! counter_param_latch[1..1])) & (! counter_param_latch[2..2]));
+	sel_param_nominal_count = ((counter_param_latch[0..0] & counter_param_latch[1..1]) & counter_param_latch[2..2]);
+	sel_param_odd_CP_unused = ((counter_param_latch[0..0] & (! counter_param_latch[1..1])) & counter_param_latch[2..2]);
+	sel_type_c0 = ((((! counter_type_latch[0..0]) & (! counter_type_latch[1..1])) & counter_type_latch[2..2]) & (! counter_type_latch[3..3]));
+	sel_type_c1 = (((counter_type_latch[0..0] & (! counter_type_latch[1..1])) & counter_type_latch[2..2]) & (! counter_type_latch[3..3]));
+	sel_type_c2 = ((((! counter_type_latch[0..0]) & counter_type_latch[1..1]) & counter_type_latch[2..2]) & (! counter_type_latch[3..3]));
+	sel_type_c3 = (((counter_type_latch[0..0] & counter_type_latch[1..1]) & counter_type_latch[2..2]) & (! counter_type_latch[3..3]));
+	sel_type_c4 = ((((! counter_type_latch[0..0]) & (! counter_type_latch[1..1])) & (! counter_type_latch[2..2])) & counter_type_latch[3..3]);
+	sel_type_cplf = ((((! counter_type_latch[0..0]) & counter_type_latch[1..1]) & (! counter_type_latch[2..2])) & (! counter_type_latch[3..3]));
+	sel_type_m = (((counter_type_latch[0..0] & (! counter_type_latch[1..1])) & (! counter_type_latch[2..2])) & (! counter_type_latch[3..3]));
+	sel_type_n = ((((! counter_type_latch[0..0]) & (! counter_type_latch[1..1])) & (! counter_type_latch[2..2])) & (! counter_type_latch[3..3]));
+	sel_type_vco = (((counter_type_latch[0..0] & counter_type_latch[1..1]) & (! counter_type_latch[2..2])) & (! counter_type_latch[3..3]));
+	seq_addr_wire[] = B"00110101";
+	seq_sload_value[] = B"110110";
+	shift_reg_clear = (read_init_state.q # read_init_nominal_state.q);
+	shift_reg_load_enable = ((idle_state.q & write_param) & (! ((((((! counter_type[3..3]) & (! counter_type[2..2])) & (! counter_type[1..1])) & counter_param[2..2]) & counter_param[1..1]) & counter_param[0..0])));
+	shift_reg_load_nominal_enable = ((idle_state.q & write_param) & ((((((! counter_type[3..3]) & (! counter_type[2..2])) & (! counter_type[1..1])) & counter_param[2..2]) & counter_param[1..1]) & counter_param[0..0]));
+	shift_reg_serial_in = scan_cache_out;
+	shift_reg_serial_out = ((((((((shift_reg[17].q & shift_reg_width_select[0..0]) # (shift_reg[17].q & shift_reg_width_select[1..1])) # (shift_reg[17].q & shift_reg_width_select[2..2])) # (shift_reg[17].q & shift_reg_width_select[3..3])) # (shift_reg[17].q & shift_reg_width_select[4..4])) # (shift_reg[17].q & shift_reg_width_select[5..5])) # (shift_reg[17].q & shift_reg_width_select[6..6])) # (shift_reg[17].q & shift_reg_width_select[7..7]));
+	shift_reg_shift_enable = ((read_data_state.q # read_last_state.q) # write_data_state.q);
+	shift_reg_shift_nominal_enable = ((read_data_nominal_state.q # read_last_nominal_state.q) # write_nominal_state.q);
+	shift_reg_width_select[] = width_decoder_select[];
+	w1565w = B"0";
+	w1592w = B"0";
+	w64w = B"0";
+	width_counter_done = (((((! cntr3.q[0..0]) & (! cntr3.q[1..1])) & (! cntr3.q[2..2])) & (! cntr3.q[3..3])) & (! cntr3.q[4..4]));
+	width_counter_enable = ((((read_first_state.q # read_data_state.q) # write_data_state.q) # read_data_nominal_state.q) # write_nominal_state.q);
+	width_counter_sload = (((read_init_state.q # write_init_state.q) # read_init_nominal_state.q) # write_init_nominal_state.q);
+	width_counter_sload_value[] = width_decoder_out[];
+	width_decoder_out[] = (((((( B"0", B"0", B"0", B"0", B"0") # ( width_decoder_select[2..2], B"0", B"0", B"0", width_decoder_select[2..2])) # ( B"0", B"0", B"0", B"0", width_decoder_select[3..3])) # ( B"0", B"0", width_decoder_select[5..5], width_decoder_select[5..5], width_decoder_select[5..5])) # ( B"0", B"0", B"0", width_decoder_select[6..6], B"0")) # ( B"0", B"0", width_decoder_select[7..7], B"0", B"0"));
+	width_decoder_select[] = ( ((sel_type_cplf & sel_param_low_r) # (sel_type_cplf & sel_param_odd_CP_unused)), (sel_type_cplf & sel_param_high_i_postscale), ((((((((((((((sel_type_n & sel_param_high_i_postscale) # (sel_type_n & sel_param_low_r)) # (sel_type_m & sel_param_high_i_postscale)) # (sel_type_m & sel_param_low_r)) # (sel_type_c0 & sel_param_high_i_postscale)) # (sel_type_c0 & sel_param_low_r)) # (sel_type_c1 & sel_param_high_i_postscale)) # (sel_type_c1 & sel_param_low_r)) # (sel_type_c2 & sel_param_high_i_postscale)) # (sel_type_c2 & sel_param_low_r)) # (sel_type_c3 & sel_param_high_i_postscale)) # (sel_type_c3 & sel_param_low_r)) # (sel_type_c4 & sel_param_high_i_postscale)) # (sel_type_c4 & sel_param_low_r)), w1592w, ((sel_type_cplf & sel_param_bypass_LF_unused) # (sel_type_cplf & sel_param_c)), ((sel_type_n & sel_param_nominal_count) # (sel_type_m & sel_param_nominal_count)), w1565w, (((((((((((((((sel_type_vco & sel_param_high_i_postscale) # (sel_type_n & sel_param_bypass_LF_unused)) # (sel_type_n & sel_param_odd_CP_unused)) # (sel_type_m & sel_param_bypass_LF_unused)) # (sel_type_m & sel_param_odd_CP_unused)) # (sel_type_c0 & sel_param_bypass_LF_unused)) # (sel_type_c0 & sel_param_odd_CP_unused)) # (sel_type_c1 & sel_param_bypass_LF_unused)) # (sel_type_c1 & sel_param_odd_CP_unused)) # (sel_type_c2 & sel_param_bypass_LF_unused)) # (sel_type_c2 & sel_param_odd_CP_unused)) # (sel_type_c3 & sel_param_bypass_LF_unused)) # (sel_type_c3 & sel_param_odd_CP_unused)) # (sel_type_c4 & sel_param_bypass_LF_unused)) # (sel_type_c4 & sel_param_odd_CP_unused)));
+	write_from_rom = GND;
+END;
+--VALID FILE
