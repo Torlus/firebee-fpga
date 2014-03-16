@@ -1,0 +1,11 @@
+db
+incremental_db
+*.done
+*.map*
+*.qws
+*.asm*
+*.fit*
+*.flow*
+*.pin
+*.jdi
+*.sta*
