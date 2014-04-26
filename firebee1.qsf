@@ -810,7 +810,6 @@ set_global_assignment -name QIP_FILE altip/lpm_shiftreg5.qip
 set_global_assignment -name QIP_FILE altip/lpm_shiftreg6.qip
 set_global_assignment -name QIP_FILE altip/altddio_out3.qip
 set_global_assignment -name QIP_FILE altip/altpll_reconfig1.qip
-set_global_assignment -name QIP_FILE altip/altpll0.qip
 set_global_assignment -name QIP_FILE altip/altpll1.qip
 set_global_assignment -name QIP_FILE altip/altpll2.qip
 set_global_assignment -name QIP_FILE altip/altpll3.qip

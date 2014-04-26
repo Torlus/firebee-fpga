@@ -735,7 +735,7 @@ lpm_ff1	b2v_inst4(
 	.q(VDVZ[127:96]));
 
 
-mux41_0	b2v_inst40(
+mux41 /*_0*/	b2v_inst40(
 	.S0(COLOR2),
 	
 	.S1(COLOR4),
@@ -746,7 +746,7 @@ mux41_0	b2v_inst40(
 	.Q(SYNTHESIZED_WIRE_54));
 
 
-mux41_1	b2v_inst41(
+mux41 /*_1*/	b2v_inst41(
 	.S0(COLOR2),
 	
 	.S1(COLOR4),
@@ -757,7 +757,7 @@ mux41_1	b2v_inst41(
 	.Q(SYNTHESIZED_WIRE_53));
 
 
-mux41_2	b2v_inst42(
+mux41 /*_2*/	b2v_inst42(
 	.S0(COLOR2),
 	.D2(CLUT_ADR7A),
 	.S1(COLOR4),
@@ -768,7 +768,7 @@ mux41_2	b2v_inst42(
 	.Q(SYNTHESIZED_WIRE_52));
 
 
-mux41_3	b2v_inst43(
+mux41 /*_3*/	b2v_inst43(
 	.S0(COLOR2),
 	.D2(CLUT_ADR6A),
 	.S1(COLOR4),
@@ -779,7 +779,7 @@ mux41_3	b2v_inst43(
 	.Q(SYNTHESIZED_WIRE_51));
 
 
-mux41_4	b2v_inst44(
+mux41 /*_4*/	b2v_inst44(
 	.S0(COLOR2),
 	.D2(CLUT_ADR5A),
 	.S1(COLOR4),
@@ -790,7 +790,7 @@ mux41_4	b2v_inst44(
 	.Q(SYNTHESIZED_WIRE_50));
 
 
-mux41_5	b2v_inst45(
+mux41 /*_5*/	b2v_inst45(
 	.S0(COLOR2),
 	.D2(CLUT_ADR4A),
 	.S1(COLOR4),
@@ -1236,34 +1236,34 @@ assign	PIXEL_CLK = PIXEL_CLK_ALTERA_SYNTHESIZED;
 
 endmodule
 
-module mux41_0(S0,S1,D0,INH,D1,Q);
+//module mux41_0(S0,S1,D0,INH,D1,Q);
 /* synthesis black_box */
 
-input S0;
+/*input S0;
 input S1;
 input D0;
 input INH;
 input D1;
 output Q;
 
-endmodule
+endmodule*/
 
-module mux41_1(S0,S1,D0,INH,D1,Q);
+//module mux41_1(S0,S1,D0,INH,D1,Q);
 /* synthesis black_box */
 
-input S0;
+/*input S0;
 input S1;
 input D0;
 input INH;
 input D1;
 output Q;
 
-endmodule
+endmodule*/
 
-module mux41_2(S0,D2,S1,D0,INH,D1,Q);
+//module mux41_2(S0,D2,S1,D0,INH,D1,Q);
 /* synthesis black_box */
 
-input S0;
+/*input S0;
 input D2;
 input S1;
 input D0;
@@ -1271,12 +1271,12 @@ input INH;
 input D1;
 output Q;
 
-endmodule
+endmodule*/
 
-module mux41_3(S0,D2,S1,D0,INH,D1,Q);
+//module mux41_3(S0,D2,S1,D0,INH,D1,Q);
 /* synthesis black_box */
 
-input S0;
+/*input S0;
 input D2;
 input S1;
 input D0;
@@ -1284,12 +1284,12 @@ input INH;
 input D1;
 output Q;
 
-endmodule
+endmodule*/
 
-module mux41_4(S0,D2,S1,D0,INH,D1,Q);
+//module mux41_4(S0,D2,S1,D0,INH,D1,Q);
 /* synthesis black_box */
 
-input S0;
+/*input S0;
 input D2;
 input S1;
 input D0;
@@ -1297,12 +1297,12 @@ input INH;
 input D1;
 output Q;
 
-endmodule
+endmodule*/
 
-module mux41_5(S0,D2,S1,D0,INH,D1,Q);
+//module mux41_5(S0,D2,S1,D0,INH,D1,Q);
 /* synthesis black_box */
 
-input S0;
+/*input S0;
 input D2;
 input S1;
 input D0;
@@ -1310,4 +1310,4 @@ input INH;
 input D1;
 output Q;
 
-endmodule
+endmodule*/

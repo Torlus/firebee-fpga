@@ -1,5 +1,6 @@
 db
 incremental_db
+greybox_tmp
 *.done
 *.map*
 *.qws
@@ -9,3 +10,4 @@ incremental_db
 *.pin
 *.jdi
 *.sta*
+*.rpt
